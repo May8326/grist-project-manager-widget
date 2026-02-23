@@ -15,7 +15,7 @@
 
 Project management widget for Grist with Kanban board, table view, Gantt chart, and task templates.
 
-**Widget URL:** `https://grist-project-manager-widget.vercel.app/index.html`
+**Widget URL:** `https://isaytoo.github.io/grist-project-manager-widget/`
 
 ### 🚀 Quick Start
 
@@ -23,7 +23,7 @@ Project management widget for Grist with Kanban board, table view, Gantt chart, 
 2. Select **"Custom"** as the widget type
 3. Enter the custom widget URL:
    ```
-   https://grist-project-manager-widget.vercel.app/index.html
+   https://isaytoo.github.io/grist-project-manager-widget/
    ```
 4. Set the access level to **"Full document access"**
 5. Done! Start managing your projects.
@@ -82,7 +82,7 @@ grist-project-manager-widget/
 
 Widget de gestion de projets pour Grist avec tableau Kanban, vue tableau, diagramme de Gantt et templates de tâches.
 
-**URL du widget :** `https://grist-project-manager-widget.vercel.app/index.html`
+**URL du widget :** `https://isaytoo.github.io/grist-project-manager-widget/`
 
 ### 🚀 Utilisation rapide
 
@@ -90,7 +90,7 @@ Widget de gestion de projets pour Grist avec tableau Kanban, vue tableau, diagra
 2. Sélectionnez **"Personnalisé"** comme type de widget
 3. Entrez l'URL :
    ```
-   https://grist-project-manager-widget.vercel.app/index.html
+   https://isaytoo.github.io/grist-project-manager-widget/
    ```
 4. Définissez le niveau d'accès sur **"Full document access"**
 5. C'est prêt ! Commencez à gérer vos projets.
