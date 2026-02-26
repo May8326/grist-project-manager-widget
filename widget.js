@@ -121,7 +121,13 @@ var i18n = {
     changePriority: 'Changer la priorité',
     taskSummary: 'Résumé de la tâche',
     addAssignee: 'Ajouter',
-    searchAssignee: 'Rechercher des noms...'
+    searchAssignee: 'Rechercher des noms...',
+    subtasks: 'Sous-tâches',
+    addSubtask: 'Ajouter une sous-tâche',
+    subtaskPlaceholder: 'Nouvelle sous-tâche...',
+    noSubtasks: 'Aucune sous-tâche',
+    subtaskCompleted: 'Sous-tâche terminée',
+    subtaskDeleted: 'Sous-tâche supprimée'
   },
   en: {
     appTitle: 'Project Management',
@@ -239,7 +245,13 @@ var i18n = {
     changePriority: 'Change priority',
     taskSummary: 'Task Summary',
     addAssignee: 'Add',
-    searchAssignee: 'Search names...'
+    searchAssignee: 'Search names...',
+    subtasks: 'Subtasks',
+    addSubtask: 'Add subtask',
+    subtaskPlaceholder: 'New subtask...',
+    noSubtasks: 'No subtasks',
+    subtaskCompleted: 'Subtask completed',
+    subtaskDeleted: 'Subtask deleted'
   }
 };
 
@@ -269,6 +281,7 @@ var tasks = [];
 var users = [];
 var groups = [];
 var templates = [];
+var subtasks = [];
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
 var ganttMonth = new Date().getMonth();
@@ -277,6 +290,7 @@ var TASKS_TABLE = 'PM_Tasks';
 var USERS_TABLE = 'PM_Users';
 var GROUPS_TABLE = 'PM_Groups';
 var TEMPLATES_TABLE = 'PM_Templates';
+var SUBTASKS_TABLE = 'PM_Subtasks';
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -325,6 +339,21 @@ function isOverdue(task) {
   if (!task.Due_Date || task.Status === 'done') return false;
   var now = Math.floor(Date.now() / 1000);
   return task.Due_Date < now;
+}
+
+function getTaskSubtasks(taskId) {
+  return subtasks.filter(function(st) { return st.Parent_Task_Id === taskId; })
+    .sort(function(a, b) { return (a.Order || 0) - (b.Order || 0); });
+}
+
+function getTaskProgress(task) {
+  var taskSubtasks = getTaskSubtasks(task.id);
+  if (taskSubtasks.length === 0) {
+    // No subtasks: use status-based progress
+    return task.Status === 'done' ? 100 : (task.Status === 'progress' ? 50 : 10);
+  }
+  var completed = taskSubtasks.filter(function(st) { return st.Completed; }).length;
+  return Math.round((completed / taskSubtasks.length) * 100);
 }
 
 function priorityLabel(p) {
@@ -414,6 +443,18 @@ async function ensureTables() {
           { id: 'Estimated_Hours', type: 'Numeric' },
           { id: 'Usage_Count', type: 'Int' },
           { id: 'Updated_At', type: 'Date' }
+        ]]
+      ]);
+    }
+
+    if (existingTables.indexOf(SUBTASKS_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', SUBTASKS_TABLE, [
+          { id: 'Parent_Task_Id', type: 'Int' },
+          { id: 'Title', type: 'Text' },
+          { id: 'Completed', type: 'Bool' },
+          { id: 'Order', type: 'Int' },
+          { id: 'Created_At', type: 'Date' }
         ]]
       ]);
     }
@@ -509,6 +550,25 @@ async function loadAllData() {
     templates = [];
   }
 
+  try {
+    var subtaskData = await grist.docApi.fetchTable(SUBTASKS_TABLE);
+    subtasks = [];
+    if (subtaskData && subtaskData.id) {
+      for (var i = 0; i < subtaskData.id.length; i++) {
+        subtasks.push({
+          id: subtaskData.id[i],
+          Parent_Task_Id: subtaskData.Parent_Task_Id ? subtaskData.Parent_Task_Id[i] : null,
+          Title: subtaskData.Title ? subtaskData.Title[i] : '',
+          Completed: subtaskData.Completed ? subtaskData.Completed[i] : false,
+          Order: subtaskData.Order ? subtaskData.Order[i] : 0,
+          Created_At: subtaskData.Created_At ? subtaskData.Created_At[i] : null
+        });
+      }
+    }
+  } catch (e) {
+    subtasks = [];
+  }
+
   refreshAllViews();
 }
 
@@ -583,6 +643,9 @@ function renderKanbanView() {
 function renderTaskCard(task) {
   var overdueHtml = isOverdue(task) ? ' <span class="overdue-badge">' + t('overdue') + '</span>' : '';
   var dotClass = task.Priority === 'high' ? 'dot-high' : (task.Priority === 'medium' ? 'dot-medium' : 'dot-low');
+  var taskSubtasks = getTaskSubtasks(task.id);
+  var progressPct = getTaskProgress(task);
+  var completedCount = taskSubtasks.filter(function(st) { return st.Completed; }).length;
 
   var html = '<div class="task-card" draggable="true" ondragstart="onDragStart(event, ' + task.id + ')" data-id="' + task.id + '" ondblclick="openEditTaskModal(' + task.id + ')">';
   html += '<div class="task-card-header">';
@@ -594,6 +657,17 @@ function renderTaskCard(task) {
 
   if (task.Description) {
     html += '<div class="task-card-desc">' + sanitize(task.Description) + '</div>';
+  }
+
+  // Subtasks progress bar
+  if (taskSubtasks.length > 0) {
+    var barClass = progressPct === 100 ? 'bar-done' : (progressPct >= 50 ? 'bar-progress' : 'bar-todo');
+    html += '<div class="task-card-subtasks">';
+    html += '<div class="subtask-progress-row">';
+    html += '<span class="subtask-icon">☑️</span>';
+    html += '<span class="subtask-count">' + completedCount + '/' + taskSubtasks.length + '</span>';
+    html += '<div class="subtask-progress-bar"><div class="subtask-progress-fill ' + barClass + '" style="width:' + progressPct + '%"></div></div>';
+    html += '</div></div>';
   }
 
   html += '<div class="task-card-meta">';
@@ -1400,9 +1474,9 @@ function openEditTaskModal(taskId) {
   var startVal = task.Start_Date ? new Date(task.Start_Date * 1000).toISOString().split('T')[0] : '';
   var dueVal = task.Due_Date ? new Date(task.Due_Date * 1000).toISOString().split('T')[0] : '';
 
-  // Progress calculation
-  var progressPct = task.Status === 'done' ? 100 : (task.Status === 'progress' ? 50 : 10);
-  var barClass = task.Status === 'done' ? 'bar-done' : (task.Status === 'progress' ? 'bar-progress' : 'bar-todo');
+  // Progress calculation based on subtasks
+  var progressPct = getTaskProgress(task);
+  var barClass = progressPct === 100 ? 'bar-done' : (progressPct >= 50 ? 'bar-progress' : 'bar-todo');
 
   // Priority dot color
   var dotColor = task.Priority === 'high' ? '#ef4444' : (task.Priority === 'medium' ? '#f59e0b' : '#22c55e');
@@ -1495,6 +1569,37 @@ function openEditTaskModal(taskId) {
   html += '<span class="detail-field-icon">📁</span>';
   html += '<span class="detail-field-label">' + t('fieldCategory') + '</span>';
   html += '<div class="detail-field-value"><input type="text" id="task-category" value="' + sanitize(task.Category || '') + '" /></div>';
+  html += '</div>';
+
+  // === SUBTASKS SECTION ===
+  var taskSubtasks = getTaskSubtasks(task.id);
+  html += '<div class="subtasks-section">';
+  html += '<div class="subtasks-header">';
+  html += '<span class="detail-field-icon">☑️</span>';
+  html += '<span class="detail-field-label">' + t('subtasks') + '</span>';
+  html += '<span class="subtask-badge">' + taskSubtasks.filter(function(st) { return st.Completed; }).length + '/' + taskSubtasks.length + '</span>';
+  html += '</div>';
+  
+  html += '<div class="subtasks-list" id="subtasks-list">';
+  if (taskSubtasks.length === 0) {
+    html += '<div class="subtasks-empty">' + t('noSubtasks') + '</div>';
+  } else {
+    for (var si = 0; si < taskSubtasks.length; si++) {
+      var st = taskSubtasks[si];
+      html += '<div class="subtask-item' + (st.Completed ? ' completed' : '') + '" data-id="' + st.id + '">';
+      html += '<input type="checkbox" class="subtask-checkbox" ' + (st.Completed ? 'checked' : '') + ' onchange="toggleSubtask(' + st.id + ', this.checked)" />';
+      html += '<span class="subtask-title">' + sanitize(st.Title) + '</span>';
+      html += '<button class="subtask-delete" onclick="deleteSubtask(' + st.id + ', ' + task.id + ')" title="' + t('delete') + '">✕</button>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+  
+  // Add subtask input
+  html += '<div class="subtask-add-row">';
+  html += '<input type="text" id="new-subtask-input" class="subtask-input" placeholder="' + t('subtaskPlaceholder') + '" onkeypress="if(event.key===\'Enter\')addSubtask(' + task.id + ')" />';
+  html += '<button class="subtask-add-btn" onclick="addSubtask(' + task.id + ')">+</button>';
+  html += '</div>';
   html += '</div>';
 
   html += '</div>'; // end left
@@ -1594,6 +1699,73 @@ async function quickAction(taskId, newStatus) {
     refreshAllViews();
   } catch (e) {
     console.error('Error quick action:', e);
+  }
+}
+
+// =============================================================================
+// SUBTASKS CRUD
+// =============================================================================
+
+async function addSubtask(parentTaskId) {
+  var input = document.getElementById('new-subtask-input');
+  var title = input.value.trim();
+  if (!title) return;
+
+  var taskSubtasks = getTaskSubtasks(parentTaskId);
+  var maxOrder = taskSubtasks.length > 0 ? Math.max.apply(null, taskSubtasks.map(function(st) { return st.Order || 0; })) : 0;
+
+  try {
+    await grist.docApi.applyUserActions([
+      ['AddRecord', SUBTASKS_TABLE, null, {
+        Parent_Task_Id: parentTaskId,
+        Title: title,
+        Completed: false,
+        Order: maxOrder + 1,
+        Created_At: Math.floor(Date.now() / 1000)
+      }]
+    ]);
+    input.value = '';
+    await loadAllData();
+    openEditTaskModal(parentTaskId);
+  } catch (e) {
+    console.error('Error adding subtask:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function toggleSubtask(subtaskId, completed) {
+  try {
+    await grist.docApi.applyUserActions([
+      ['UpdateRecord', SUBTASKS_TABLE, subtaskId, { Completed: completed }]
+    ]);
+    // Update local state
+    for (var i = 0; i < subtasks.length; i++) {
+      if (subtasks[i].id === subtaskId) {
+        subtasks[i].Completed = completed;
+        break;
+      }
+    }
+    showToast(t('subtaskCompleted'), 'success');
+    // Refresh the subtasks list in modal without closing
+    var subtask = subtasks.find(function(st) { return st.id === subtaskId; });
+    if (subtask) {
+      openEditTaskModal(subtask.Parent_Task_Id);
+    }
+  } catch (e) {
+    console.error('Error toggling subtask:', e);
+  }
+}
+
+async function deleteSubtask(subtaskId, parentTaskId) {
+  try {
+    await grist.docApi.applyUserActions([
+      ['RemoveRecord', SUBTASKS_TABLE, subtaskId]
+    ]);
+    showToast(t('subtaskDeleted'), 'info');
+    await loadAllData();
+    openEditTaskModal(parentTaskId);
+  } catch (e) {
+    console.error('Error deleting subtask:', e);
   }
 }
 
