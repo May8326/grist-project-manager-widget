@@ -1352,12 +1352,13 @@ function renderGanttView() {
       var barClass = task.Status === 'done' ? 'gantt-bar-done' : (task.Status === 'progress' ? 'gantt-bar-progress' : 'gantt-bar-todo');
       if (isOverdue(task)) barClass = 'gantt-bar-overdue';
 
+      var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
       html += '<tr>';
       html += '<td class="gantt-task-label">';
       html += '<div class="task-name"><span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
       html += '<div class="task-info">';
       if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
-      if (task.Assignee) html += ' 👤 ' + sanitize(task.Assignee).substring(0, 15) + '…';
+      if (assigneeDisplay) html += ' 👤 ' + sanitize(assigneeDisplay).substring(0, 15);
       if (task.Due_Date) html += ' ⏰ ' + (currentLang === 'fr' ? 'Échéance: ' : 'Due: ') + formatDate(task.Due_Date);
       html += '</div></td>';
 
@@ -1422,12 +1423,13 @@ function renderGanttView() {
       var barClass = task.Status === 'done' ? 'gantt-bar-done' : (task.Status === 'progress' ? 'gantt-bar-progress' : 'gantt-bar-todo');
       if (isOverdue(task)) barClass = 'gantt-bar-overdue';
 
+      var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
       html += '<tr>';
       html += '<td class="gantt-task-label">';
       html += '<div class="task-name"><span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
       html += '<div class="task-info">';
       if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
-      if (task.Assignee) html += ' 👤 ' + sanitize(task.Assignee).substring(0, 15) + '…';
+      if (assigneeDisplay) html += ' 👤 ' + sanitize(assigneeDisplay).substring(0, 15);
       if (task.Due_Date) html += ' ⏰ ' + (currentLang === 'fr' ? 'Échéance: ' : 'Due: ') + formatDate(task.Due_Date);
       html += '</div></td>';
 
@@ -1487,12 +1489,13 @@ function renderGanttView() {
     var barClass = task.Status === 'done' ? 'gantt-bar-done' : (task.Status === 'progress' ? 'gantt-bar-progress' : 'gantt-bar-todo');
     if (isOverdue(task)) barClass = 'gantt-bar-overdue';
 
+    var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
     html += '<tr>';
     html += '<td class="gantt-task-label">';
     html += '<div class="task-name"><span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
     html += '<div class="task-info">';
     if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
-    if (task.Assignee) html += ' 👤 ' + sanitize(task.Assignee).substring(0, 15) + '…';
+    if (assigneeDisplay) html += ' 👤 ' + sanitize(assigneeDisplay).substring(0, 15);
     if (task.Due_Date) html += ' ⏰ ' + (currentLang === 'fr' ? 'Échéance: ' : 'Due: ') + formatDate(task.Due_Date);
     html += '</div></td>';
 
