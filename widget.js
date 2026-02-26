@@ -1193,10 +1193,18 @@ function renderTableView() {
     var barClass = progressPct === 100 ? 'bar-done' : (progressPct >= 50 ? 'bar-progress' : 'bar-todo');
 
     html += '<tr class="task-row">';
-    html += '<td><div style="font-weight:700;">' + sanitize(task.Title) + '</div>';
+    html += '<td><div style="display:flex;align-items:center;gap:8px;">';
+    if (taskSubtasks.length > 0) {
+      html += '<button class="toggle-btn" onclick="toggleSubtasks(' + task.id + ')" id="toggle-' + task.id + '">▶</button>';
+    } else {
+      html += '<span style="width:18px;"></span>';
+    }
+    html += '<div><div style="font-weight:700;">' + sanitize(task.Title) + '</div>';
     if (task.Description) html += '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">' + sanitize(task.Description).substring(0, 80) + '</div>';
+    html += '</div></div></td>';
+    html += '<td><span class="status-badge ' + statusClass + '">● ' + statusLabel(task.Status) + '</span>';
+    if (taskSubtasks.length > 0) html += ' <span class="st-badge">' + completedSt + '/' + taskSubtasks.length + '</span>';
     html += '</td>';
-    html += '<td><span class="status-badge ' + statusClass + '">● ' + statusLabel(task.Status) + '</span></td>';
     html += '<td><span class="priority-dot ' + dotClass + '"></span> ' + priorityLabel(task.Priority) + '</td>';
     var assigneeDisplay = task.Assignee ? task.Assignee.split(',').map(function(a) { return getUserDisplayName(a.trim()); }).join(', ') : '';
     html += '<td>' + (assigneeDisplay ? '<span class="assignee-chip">👤 ' + sanitize(assigneeDisplay) + '</span>' : '') + '</td>';
@@ -1208,10 +1216,10 @@ function renderTableView() {
     html += '</td>';
     html += '</tr>';
 
-    // Subtasks rows
+    // Subtasks rows (hidden by default)
     for (var si = 0; si < taskSubtasks.length; si++) {
       var st = taskSubtasks[si];
-      html += '<tr class="subtask-row">';
+      html += '<tr class="subtask-row" data-parent="' + task.id + '" style="display:none;">';
       html += '<td><div class="subtask-indent"><span class="subtask-arrow">└</span><span class="subtask-name' + (st.Completed ? ' completed' : '') + '">' + sanitize(st.Title) + '</span></div></td>';
       html += '<td><span class="st-status">' + (st.Completed ? '✅' : '⬜') + '</span></td>';
       html += '<td colspan="5"></td>';
@@ -1225,6 +1233,34 @@ function renderTableView() {
 
   html += '</tbody></table>';
   document.getElementById('table-view').innerHTML = html;
+}
+
+function toggleSubtasks(taskId) {
+  var rows = document.querySelectorAll('.subtask-row[data-parent="' + taskId + '"]');
+  var btn = document.getElementById('toggle-' + taskId);
+  var isExpanded = rows.length > 0 && rows[0].style.display !== 'none';
+  
+  for (var i = 0; i < rows.length; i++) {
+    rows[i].style.display = isExpanded ? 'none' : 'table-row';
+  }
+  if (btn) {
+    btn.textContent = isExpanded ? '▶' : '▼';
+    btn.classList.toggle('expanded', !isExpanded);
+  }
+}
+
+function expandAllSubtasks() {
+  var rows = document.querySelectorAll('.subtask-row');
+  var btns = document.querySelectorAll('.toggle-btn');
+  for (var i = 0; i < rows.length; i++) rows[i].style.display = 'table-row';
+  for (var i = 0; i < btns.length; i++) { btns[i].textContent = '▼'; btns[i].classList.add('expanded'); }
+}
+
+function collapseAllSubtasks() {
+  var rows = document.querySelectorAll('.subtask-row');
+  var btns = document.querySelectorAll('.toggle-btn');
+  for (var i = 0; i < rows.length; i++) rows[i].style.display = 'none';
+  for (var i = 0; i < btns.length; i++) { btns[i].textContent = '▶'; btns[i].classList.remove('expanded'); }
 }
 
 // =============================================================================

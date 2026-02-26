@@ -758,6 +758,37 @@
     }
 
     /* Subtasks in Table View */
+    .toggle-btn {
+      width: 18px;
+      height: 18px;
+      border: none;
+      background: #e2e8f0;
+      color: #64748b;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .toggle-btn:hover {
+      background: #cbd5e1;
+      color: #1e293b;
+    }
+    .toggle-btn.expanded {
+      background: #dbeafe;
+      color: #3b82f6;
+    }
+    .st-badge {
+      background: #e0f2fe;
+      color: #0284c7;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+    }
     .subtask-row {
       background: #f8fafc !important;
     }
@@ -768,7 +799,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding-left: 20px;
+      padding-left: 28px;
     }
     .subtask-arrow {
       color: #cbd5e1;
