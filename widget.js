@@ -146,7 +146,25 @@ var i18n = {
     justNow: "À l'instant",
     minutesAgo: 'il y a {n} min',
     hoursAgo: 'il y a {n}h',
-    daysAgo: 'il y a {n}j'
+    daysAgo: 'il y a {n}j',
+    timeTracking: 'Suivi du temps',
+    startTimer: 'Démarrer',
+    stopTimer: 'Arrêter',
+    timerRunning: 'En cours...',
+    totalTime: 'Temps total',
+    estimatedTime: 'Temps estimé',
+    timeEntries: 'Entrées de temps',
+    noTimeEntries: 'Aucune entrée',
+    timeEntryAdded: 'Temps enregistré',
+    timeEntryDeleted: 'Entrée supprimée',
+    hours: 'h',
+    minutes: 'min',
+    recurrence: 'Récurrence',
+    recurrenceNone: 'Aucune',
+    recurrenceDaily: 'Quotidienne',
+    recurrenceWeekly: 'Hebdomadaire',
+    recurrenceMonthly: 'Mensuelle',
+    nextOccurrence: 'Prochaine occurrence créée'
   },
   en: {
     appTitle: 'Project Management',
@@ -289,7 +307,25 @@ var i18n = {
     justNow: 'Just now',
     minutesAgo: '{n} min ago',
     hoursAgo: '{n}h ago',
-    daysAgo: '{n}d ago'
+    daysAgo: '{n}d ago',
+    timeTracking: 'Time Tracking',
+    startTimer: 'Start',
+    stopTimer: 'Stop',
+    timerRunning: 'Running...',
+    totalTime: 'Total time',
+    estimatedTime: 'Estimated time',
+    timeEntries: 'Time entries',
+    noTimeEntries: 'No entries',
+    timeEntryAdded: 'Time recorded',
+    timeEntryDeleted: 'Entry deleted',
+    hours: 'h',
+    minutes: 'min',
+    recurrence: 'Recurrence',
+    recurrenceNone: 'None',
+    recurrenceDaily: 'Daily',
+    recurrenceWeekly: 'Weekly',
+    recurrenceMonthly: 'Monthly',
+    nextOccurrence: 'Next occurrence created'
   }
 };
 
@@ -322,6 +358,8 @@ var templates = [];
 var subtasks = [];
 var dependencies = [];
 var comments = [];
+var timeEntries = [];
+var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
 var ganttMonth = new Date().getMonth();
@@ -333,6 +371,7 @@ var TEMPLATES_TABLE = 'PM_Templates';
 var SUBTASKS_TABLE = 'PM_Subtasks';
 var DEPENDENCIES_TABLE = 'PM_Dependencies';
 var COMMENTS_TABLE = 'PM_Comments';
+var TIME_ENTRIES_TABLE = 'PM_TimeEntries';
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -436,6 +475,44 @@ function formatTimeAgo(timestamp) {
   return t('daysAgo').replace('{n}', Math.floor(diff / 86400));
 }
 
+function getTaskTimeEntries(taskId) {
+  return timeEntries.filter(function(te) { return te.Task_Id === taskId; })
+    .sort(function(a, b) { return (b.Start_Time || 0) - (a.Start_Time || 0); });
+}
+
+function getTaskTotalTime(taskId) {
+  var entries = getTaskTimeEntries(taskId);
+  var total = 0;
+  for (var i = 0; i < entries.length; i++) {
+    total += entries[i].Duration || 0;
+  }
+  // Add running timer if active
+  if (activeTimers[taskId]) {
+    total += Math.floor(Date.now() / 1000) - activeTimers[taskId];
+  }
+  return total;
+}
+
+function formatDuration(seconds) {
+  if (!seconds || seconds < 0) return '0' + t('minutes');
+  var hours = Math.floor(seconds / 3600);
+  var mins = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return hours + t('hours') + ' ' + mins + t('minutes');
+  }
+  return mins + t('minutes');
+}
+
+function formatDurationShort(seconds) {
+  if (!seconds || seconds < 0) return '0m';
+  var hours = Math.floor(seconds / 3600);
+  var mins = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return hours + 'h' + (mins > 0 ? mins + 'm' : '');
+  }
+  return mins + 'm';
+}
+
 function priorityLabel(p) {
   if (p === 'high') return t('priorityHigh');
   if (p === 'medium') return t('priorityMedium');
@@ -488,6 +565,8 @@ async function ensureTables() {
           { id: 'Start_Date', type: 'Date' },
           { id: 'Due_Date', type: 'Date' },
           { id: 'Category', type: 'Text' },
+          { id: 'Recurrence', type: 'Choice', widgetOptions: JSON.stringify({ choices: ['none', 'daily', 'weekly', 'monthly'] }) },
+          { id: 'Estimated_Hours', type: 'Numeric' },
           { id: 'Created_At', type: 'Date' }
         ]]
       ]);
@@ -560,6 +639,19 @@ async function ensureTables() {
       ]);
     }
 
+    if (existingTables.indexOf(TIME_ENTRIES_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', TIME_ENTRIES_TABLE, [
+          { id: 'Task_Id', type: 'Int' },
+          { id: 'User', type: 'Text' },
+          { id: 'Start_Time', type: 'Date' },
+          { id: 'End_Time', type: 'Date' },
+          { id: 'Duration', type: 'Int' },
+          { id: 'Description', type: 'Text' }
+        ]]
+      ]);
+    }
+
     showToast(t('tablesCreated'), 'success');
   } catch (e) {
     console.error('Error ensuring tables:', e);
@@ -587,6 +679,8 @@ async function loadAllData() {
           Start_Date: taskData.Start_Date ? taskData.Start_Date[i] : null,
           Due_Date: taskData.Due_Date ? taskData.Due_Date[i] : null,
           Category: taskData.Category ? taskData.Category[i] : '',
+          Recurrence: taskData.Recurrence ? taskData.Recurrence[i] : 'none',
+          Estimated_Hours: taskData.Estimated_Hours ? taskData.Estimated_Hours[i] : 0,
           Created_At: taskData.Created_At ? taskData.Created_At[i] : null
         });
       }
@@ -703,6 +797,26 @@ async function loadAllData() {
     }
   } catch (e) {
     comments = [];
+  }
+
+  try {
+    var timeData = await grist.docApi.fetchTable(TIME_ENTRIES_TABLE);
+    timeEntries = [];
+    if (timeData && timeData.id) {
+      for (var i = 0; i < timeData.id.length; i++) {
+        timeEntries.push({
+          id: timeData.id[i],
+          Task_Id: timeData.Task_Id ? timeData.Task_Id[i] : null,
+          User: timeData.User ? timeData.User[i] : '',
+          Start_Time: timeData.Start_Time ? timeData.Start_Time[i] : null,
+          End_Time: timeData.End_Time ? timeData.End_Time[i] : null,
+          Duration: timeData.Duration ? timeData.Duration[i] : 0,
+          Description: timeData.Description ? timeData.Description[i] : ''
+        });
+      }
+    }
+  } catch (e) {
+    timeEntries = [];
   }
 
   refreshAllViews();
@@ -830,6 +944,17 @@ function renderTaskCard(task) {
   // Comments count
   if (taskComments.length > 0) {
     html += '<span class="task-card-comments">💬 ' + taskComments.length + '</span>';
+  }
+  // Time tracking
+  var totalTime = getTaskTotalTime(task.id);
+  var isTimerRunning = !!activeTimers[task.id];
+  if (totalTime > 0 || isTimerRunning) {
+    html += '<span class="task-card-time' + (isTimerRunning ? ' timer-running' : '') + '">⏱️ ' + formatDurationShort(totalTime) + (isTimerRunning ? ' ●' : '') + '</span>';
+  }
+  // Recurrence badge
+  if (task.Recurrence && task.Recurrence !== 'none') {
+    var recLabel = task.Recurrence === 'daily' ? '🔄 D' : (task.Recurrence === 'weekly' ? '🔄 W' : '🔄 M');
+    html += '<span class="task-card-recurrence">' + recLabel + '</span>';
   }
   html += '</div>';
   html += '</div>';
@@ -1880,6 +2005,59 @@ function openEditTaskModal(taskId) {
   html += '<div class="detail-info-row"><span class="info-label">' + t('fieldAssignee') + ' :</span><span class="info-value">' + editAssignees.length + '</span></div>';
   html += '</div>';
 
+  // Time Tracking card
+  var totalTime = getTaskTotalTime(task.id);
+  var isTimerRunning = !!activeTimers[task.id];
+  var taskTimeEntries = getTaskTimeEntries(task.id);
+  html += '<div class="detail-card time-card">';
+  html += '<h4>⏱️ ' + t('timeTracking') + '</h4>';
+  
+  // Timer button
+  html += '<div class="timer-control">';
+  if (isTimerRunning) {
+    html += '<button class="timer-btn timer-stop" onclick="stopTimer(' + task.id + ')">⏹️ ' + t('stopTimer') + '</button>';
+    html += '<span class="timer-status running">● ' + t('timerRunning') + '</span>';
+  } else {
+    html += '<button class="timer-btn timer-start" onclick="startTimer(' + task.id + ')">▶️ ' + t('startTimer') + '</button>';
+  }
+  html += '</div>';
+  
+  // Time summary
+  html += '<div class="time-summary">';
+  html += '<div class="detail-info-row"><span class="info-label">' + t('totalTime') + ' :</span><span class="info-value time-value">' + formatDuration(totalTime) + '</span></div>';
+  if (task.Estimated_Hours) {
+    var estimatedSec = task.Estimated_Hours * 3600;
+    var pctUsed = Math.round((totalTime / estimatedSec) * 100);
+    html += '<div class="detail-info-row"><span class="info-label">' + t('estimatedTime') + ' :</span><span class="info-value">' + task.Estimated_Hours + 'h (' + pctUsed + '%)</span></div>';
+  }
+  html += '</div>';
+  
+  // Recent time entries
+  if (taskTimeEntries.length > 0) {
+    html += '<div class="time-entries">';
+    html += '<div class="time-entries-label">' + t('timeEntries') + ':</div>';
+    for (var tei = 0; tei < Math.min(3, taskTimeEntries.length); tei++) {
+      var te = taskTimeEntries[tei];
+      html += '<div class="time-entry-item">';
+      html += '<span class="te-duration">' + formatDurationShort(te.Duration) + '</span>';
+      html += '<span class="te-date">' + formatTimeAgo(te.Start_Time) + '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Recurrence card
+  html += '<div class="detail-card">';
+  html += '<h4>🔄 ' + t('recurrence') + '</h4>';
+  html += '<select id="task-recurrence" class="recurrence-select">';
+  html += '<option value="none"' + (task.Recurrence === 'none' || !task.Recurrence ? ' selected' : '') + '>' + t('recurrenceNone') + '</option>';
+  html += '<option value="daily"' + (task.Recurrence === 'daily' ? ' selected' : '') + '>' + t('recurrenceDaily') + '</option>';
+  html += '<option value="weekly"' + (task.Recurrence === 'weekly' ? ' selected' : '') + '>' + t('recurrenceWeekly') + '</option>';
+  html += '<option value="monthly"' + (task.Recurrence === 'monthly' ? ' selected' : '') + '>' + t('recurrenceMonthly') + '</option>';
+  html += '</select>';
+  html += '</div>';
+
   html += '</div>'; // end right
   html += '</div>'; // end content
 
@@ -1929,6 +2107,9 @@ function removeAssigneeChip(index) {
 }
 
 async function quickAction(taskId, newStatus) {
+  var task = tasks.find(function(t) { return t.id === taskId; });
+  var wasNotDone = task && task.Status !== 'done';
+  
   try {
     await grist.docApi.applyUserActions([
       ['UpdateRecord', TASKS_TABLE, taskId, { Status: newStatus }]
@@ -1937,8 +2118,14 @@ async function quickAction(taskId, newStatus) {
       if (tasks[i].id === taskId) { tasks[i].Status = newStatus; break; }
     }
     showToast(t('taskMoved'), 'success');
+    
+    // Create next occurrence if task is recurring and just completed
+    if (newStatus === 'done' && wasNotDone && task && task.Recurrence && task.Recurrence !== 'none') {
+      await createNextOccurrence(task);
+    }
+    
     closeModalForce();
-    refreshAllViews();
+    await loadAllData();
   } catch (e) {
     console.error('Error quick action:', e);
   }
@@ -2097,6 +2284,90 @@ async function deleteComment(commentId, taskId) {
   }
 }
 
+// =============================================================================
+// TIME TRACKING
+// =============================================================================
+
+function startTimer(taskId) {
+  activeTimers[taskId] = Math.floor(Date.now() / 1000);
+  openEditTaskModal(taskId);
+}
+
+async function stopTimer(taskId) {
+  if (!activeTimers[taskId]) return;
+  
+  var startTime = activeTimers[taskId];
+  var endTime = Math.floor(Date.now() / 1000);
+  var duration = endTime - startTime;
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['AddRecord', TIME_ENTRIES_TABLE, null, {
+        Task_Id: taskId,
+        User: currentUserEmail || 'Utilisateur',
+        Start_Time: startTime,
+        End_Time: endTime,
+        Duration: duration,
+        Description: ''
+      }]
+    ]);
+    delete activeTimers[taskId];
+    showToast(t('timeEntryAdded'), 'success');
+    await loadAllData();
+    openEditTaskModal(taskId);
+  } catch (e) {
+    console.error('Error stopping timer:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// =============================================================================
+// RECURRENCE HANDLING
+// =============================================================================
+
+async function createNextOccurrence(task) {
+  if (!task.Recurrence || task.Recurrence === 'none') return;
+  
+  var newStartDate = null;
+  var newDueDate = null;
+  var now = Math.floor(Date.now() / 1000);
+  
+  // Calculate next dates based on recurrence type
+  if (task.Recurrence === 'daily') {
+    if (task.Start_Date) newStartDate = task.Start_Date + 86400;
+    if (task.Due_Date) newDueDate = task.Due_Date + 86400;
+  } else if (task.Recurrence === 'weekly') {
+    if (task.Start_Date) newStartDate = task.Start_Date + 604800;
+    if (task.Due_Date) newDueDate = task.Due_Date + 604800;
+  } else if (task.Recurrence === 'monthly') {
+    // Add ~30 days
+    if (task.Start_Date) newStartDate = task.Start_Date + 2592000;
+    if (task.Due_Date) newDueDate = task.Due_Date + 2592000;
+  }
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['AddRecord', TASKS_TABLE, null, {
+        Title: task.Title,
+        Description: task.Description,
+        Status: 'todo',
+        Priority: task.Priority,
+        Assignee: task.Assignee,
+        Group_Name: task.Group_Name,
+        Start_Date: newStartDate,
+        Due_Date: newDueDate,
+        Category: task.Category,
+        Recurrence: task.Recurrence,
+        Estimated_Hours: task.Estimated_Hours,
+        Created_At: now
+      }]
+    ]);
+    showToast(t('nextOccurrence'), 'success');
+  } catch (e) {
+    console.error('Error creating next occurrence:', e);
+  }
+}
+
 function openNewTemplateModal() {
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
@@ -2170,16 +2441,23 @@ async function updateTask(taskId) {
   var title = document.getElementById('task-title').value.trim();
   if (!title) return;
 
+  var task = tasks.find(function(t) { return t.id === taskId; });
+  var wasNotDone = task && task.Status !== 'done';
+  var newStatus = document.getElementById('task-status').value;
+  var recurrenceEl = document.getElementById('task-recurrence');
+  var newRecurrence = recurrenceEl ? recurrenceEl.value : (task ? task.Recurrence : 'none');
+
   var record = {
     Title: title,
     Description: document.getElementById('task-desc').value.trim(),
-    Status: document.getElementById('task-status').value,
+    Status: newStatus,
     Priority: document.getElementById('task-priority').value,
     Assignee: editAssignees.join(', '),
     Group_Name: document.getElementById('task-group').value,
     Start_Date: toEpoch(document.getElementById('task-start').value),
     Due_Date: toEpoch(document.getElementById('task-due').value),
-    Category: document.getElementById('task-category').value.trim()
+    Category: document.getElementById('task-category').value.trim(),
+    Recurrence: newRecurrence
   };
 
   try {
@@ -2187,6 +2465,13 @@ async function updateTask(taskId) {
       ['UpdateRecord', TASKS_TABLE, taskId, record]
     ]);
     showToast(t('taskUpdated'), 'success');
+    
+    // Create next occurrence if task is recurring and just completed
+    if (newStatus === 'done' && wasNotDone && newRecurrence && newRecurrence !== 'none') {
+      var updatedTask = Object.assign({}, task, record);
+      await createNextOccurrence(updatedTask);
+    }
+    
     closeModalForce();
     await loadAllData();
   } catch (e) {
