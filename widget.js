@@ -1672,10 +1672,10 @@ function renderTableView() {
     var progressPct = taskSubtasks.length > 0 ? Math.round((completedSt / taskSubtasks.length) * 100) : 0;
     var barClass = progressPct === 100 ? 'bar-done' : (progressPct >= 50 ? 'bar-progress' : 'bar-todo');
 
-    html += '<tr class="task-row">';
+    html += '<tr class="task-row clickable-row" onclick="openEditTaskModal(' + task.id + ')">';
     html += '<td><div style="display:flex;align-items:center;gap:8px;">';
     if (taskSubtasks.length > 0) {
-      html += '<button class="toggle-btn" onclick="toggleSubtasks(' + task.id + ')" id="toggle-' + task.id + '">▶</button>';
+      html += '<button class="toggle-btn" onclick="event.stopPropagation(); toggleSubtasks(' + task.id + ')" id="toggle-' + task.id + '">▶</button>';
     } else {
       html += '<span style="width:18px;"></span>';
     }
@@ -1690,8 +1690,7 @@ function renderTableView() {
     html += '<td>' + (assigneeDisplay ? '<span class="assignee-chip">👤 ' + sanitize(assigneeDisplay) + '</span>' : '') + '</td>';
     html += '<td>' + (task.Start_Date ? formatDate(task.Start_Date) : t('notDefined')) + '</td>';
     html += '<td style="' + (isOverdue(task) ? 'color:#dc2626;font-weight:700;' : '') + '">' + (task.Due_Date ? formatDate(task.Due_Date) + overdueHtml : t('noDate')) + '</td>';
-    html += '<td>';
-    html += '<button class="btn-icon" onclick="openEditTaskModal(' + task.id + ')" title="Modifier">✏️</button>';
+    html += '<td onclick="event.stopPropagation();">';
     if (isOwner) html += '<button class="btn-icon" onclick="deleteTask(' + task.id + ')">🗑️</button>';
     html += '</td>';
     html += '</tr>';
