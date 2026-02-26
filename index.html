@@ -549,6 +549,33 @@
       background: #ef4444;
       color: white;
     }
+    .calendar-mode-btns {
+      display: flex;
+      gap: 2px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 3px;
+      margin-left: 10px;
+    }
+    .calendar-mode-btn {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #64748b;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .calendar-mode-btn.active {
+      background: white;
+      color: #1e293b;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .calendar-mode-btn:hover:not(.active) {
+      color: #1e293b;
+    }
     .calendar-weekdays {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -653,6 +680,16 @@
       color: #64748b;
       text-align: center;
       padding: 2px;
+    }
+    /* Week view */
+    .calendar-days.week-view {
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .calendar-days.week-view .calendar-day {
+      min-height: 300px;
+    }
+    .calendar-days.week-view .day-tasks {
+      max-height: none;
     }
 
     /* ========== GANTT VIEW ========== */
@@ -1880,6 +1917,10 @@
           <h2 id="calendar-month-title"></h2>
           <button class="calendar-nav-btn" onclick="calendarNav(1)">▶</button>
           <button class="calendar-today-btn" onclick="calendarToday()">Aujourd'hui</button>
+          <div class="calendar-mode-btns">
+            <button class="calendar-mode-btn active" data-mode="month" onclick="setCalendarMode('month')">Mois</button>
+            <button class="calendar-mode-btn" data-mode="week" onclick="setCalendarMode('week')">Semaine</button>
+          </div>
         </div>
         <div class="calendar-grid">
           <div class="calendar-weekdays" id="calendar-weekdays"></div>
