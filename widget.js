@@ -563,6 +563,20 @@ function getCustomFieldTypeLabel(type) {
   }
 }
 
+function getUserDisplayName(emailOrName) {
+  if (!emailOrName) return '';
+  // Try to find user by email
+  var user = users.find(function(u) { 
+    return u.Email === emailOrName || u.Name === emailOrName; 
+  });
+  if (user && user.Name) return user.Name;
+  // If no user found or no name, extract name from email
+  if (emailOrName.indexOf('@') !== -1) {
+    return emailOrName.split('@')[0];
+  }
+  return emailOrName;
+}
+
 function priorityLabel(p) {
   if (p === 'high') return t('priorityHigh');
   if (p === 'medium') return t('priorityMedium');
@@ -1068,7 +1082,7 @@ function renderTaskCard(task) {
   if (task.Assignee) {
     var assigneeList = task.Assignee.split(',').map(function(a) { return a.trim(); }).filter(Boolean);
     for (var ai = 0; ai < assigneeList.length; ai++) {
-      html += '<span class="task-card-assignee">👤 ' + sanitize(assigneeList[ai]) + '</span>';
+      html += '<span class="task-card-assignee">👤 ' + sanitize(getUserDisplayName(assigneeList[ai])) + '</span>';
     }
   }
   // Comments count
