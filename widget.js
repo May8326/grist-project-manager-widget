@@ -724,6 +724,27 @@ async function ensureTables() {
       ]);
     }
 
+    // Migration: Add missing columns to existing PM_Tasks table
+    if (existingTables.indexOf(TASKS_TABLE) !== -1) {
+      try {
+        var tableInfo = await grist.docApi.fetchTable(TASKS_TABLE);
+        var existingCols = Object.keys(tableInfo);
+        
+        if (existingCols.indexOf('Recurrence') === -1) {
+          await grist.docApi.applyUserActions([
+            ['AddColumn', TASKS_TABLE, 'Recurrence', { type: 'Choice', widgetOptions: JSON.stringify({ choices: ['none', 'daily', 'weekly', 'monthly'] }) }]
+          ]);
+        }
+        if (existingCols.indexOf('Estimated_Hours') === -1) {
+          await grist.docApi.applyUserActions([
+            ['AddColumn', TASKS_TABLE, 'Estimated_Hours', { type: 'Numeric' }]
+          ]);
+        }
+      } catch (migrationErr) {
+        console.log('Migration check completed or columns already exist');
+      }
+    }
+
     showToast(t('tablesCreated'), 'success');
   } catch (e) {
     console.error('Error ensuring tables:', e);
