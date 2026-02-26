@@ -9,6 +9,7 @@ var i18n = {
     appTitle: 'Gestion de Projet',
     appSubtitle: 'Organisez et suivez vos tâches avec le tableau Kanban ou la vue tableau',
     notInGrist: 'Ce widget doit être utilisé dans Grist.',
+    tabCalendar: 'Calendrier',
     tabKanban: 'Kanban',
     tabTable: 'Tableau',
     tabGantt: 'Gantt',
@@ -191,6 +192,7 @@ var i18n = {
     appTitle: 'Project Management',
     appSubtitle: 'Organize and track your tasks with the Kanban board or table view',
     notInGrist: 'This widget must be used inside Grist.',
+    tabCalendar: 'Calendar',
     tabKanban: 'Kanban',
     tabTable: 'Table',
     tabGantt: 'Gantt',
@@ -408,6 +410,8 @@ var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
 var ganttMonth = new Date().getMonth();
+var calendarYear = new Date().getFullYear();
+var calendarMonth = new Date().getMonth();
 
 var TASKS_TABLE = 'PM_Tasks';
 var USERS_TABLE = 'PM_Users';
@@ -629,6 +633,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(function(tc) {
     tc.classList.toggle('active', tc.id === 'tab-' + tabId);
   });
+  if (tabId === 'calendar') renderCalendarView();
   if (tabId === 'kanban') renderKanbanView();
   if (tabId === 'table') renderTableView();
   if (tabId === 'gantt') renderGanttView();
@@ -1042,6 +1047,7 @@ function refreshAllViews() {
   var activeTab = document.querySelector('.tab-btn.active');
   if (activeTab) {
     var tab = activeTab.getAttribute('data-tab');
+    if (tab === 'calendar') renderCalendarView();
     if (tab === 'kanban') renderKanbanView();
     if (tab === 'table') renderTableView();
     if (tab === 'gantt') renderGanttView();
@@ -1063,6 +1069,161 @@ function updateStats() {
   document.getElementById('stat-todo').textContent = todo;
   document.getElementById('stat-progress').textContent = progress;
   document.getElementById('stat-done').textContent = done;
+}
+
+// =============================================================================
+// CALENDAR VIEW
+// =============================================================================
+
+function renderCalendarView() {
+  var monthNames = currentLang === 'fr'
+    ? ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+    : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var dayNames = currentLang === 'fr'
+    ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Update title
+  document.getElementById('calendar-month-title').textContent = monthNames[calendarMonth] + ' ' + calendarYear;
+
+  // Render weekdays
+  var weekdaysHtml = '';
+  for (var d = 0; d < 7; d++) {
+    var isWeekend = d >= 5;
+    weekdaysHtml += '<div class="calendar-weekday' + (isWeekend ? ' weekend' : '') + '">' + dayNames[d] + '</div>';
+  }
+  document.getElementById('calendar-weekdays').innerHTML = weekdaysHtml;
+
+  // Calculate days
+  var firstDay = new Date(calendarYear, calendarMonth, 1);
+  var lastDay = new Date(calendarYear, calendarMonth + 1, 0);
+  var startDayOfWeek = (firstDay.getDay() + 6) % 7; // Monday = 0
+  var daysInMonth = lastDay.getDate();
+
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get tasks for this month
+  function getTasksForDate(date) {
+    var dateStart = new Date(date);
+    dateStart.setHours(0, 0, 0, 0);
+    var dateEnd = new Date(date);
+    dateEnd.setHours(23, 59, 59, 999);
+    var dateTs = dateStart.getTime() / 1000;
+    var dateEndTs = dateEnd.getTime() / 1000;
+
+    return tasks.filter(function(task) {
+      var taskStart = task.Start_Date;
+      var taskEnd = task.Due_Date;
+      if (!taskStart && !taskEnd) return false;
+      if (taskStart && taskEnd) {
+        return taskStart <= dateEndTs && taskEnd >= dateTs;
+      }
+      if (taskStart) return taskStart >= dateTs && taskStart <= dateEndTs;
+      if (taskEnd) return taskEnd >= dateTs && taskEnd <= dateEndTs;
+      return false;
+    });
+  }
+
+  // Render days
+  var daysHtml = '';
+  var dayIndex = 0;
+
+  // Previous month days
+  var prevMonth = new Date(calendarYear, calendarMonth, 0);
+  var prevMonthDays = prevMonth.getDate();
+  for (var i = startDayOfWeek - 1; i >= 0; i--) {
+    var dayNum = prevMonthDays - i;
+    var prevDate = new Date(calendarYear, calendarMonth - 1, dayNum);
+    var prevTasks = getTasksForDate(prevDate);
+    daysHtml += renderCalendarDay(dayNum, prevDate, prevTasks, true, false);
+    dayIndex++;
+  }
+
+  // Current month days
+  for (var d = 1; d <= daysInMonth; d++) {
+    var currentDate = new Date(calendarYear, calendarMonth, d);
+    var isToday = currentDate.getTime() === today.getTime();
+    var dayTasks = getTasksForDate(currentDate);
+    daysHtml += renderCalendarDay(d, currentDate, dayTasks, false, isToday);
+    dayIndex++;
+  }
+
+  // Next month days
+  var remainingDays = 42 - dayIndex; // 6 rows * 7 days
+  for (var i = 1; i <= remainingDays; i++) {
+    var nextDate = new Date(calendarYear, calendarMonth + 1, i);
+    var nextTasks = getTasksForDate(nextDate);
+    daysHtml += renderCalendarDay(i, nextDate, nextTasks, true, false);
+  }
+
+  document.getElementById('calendar-days').innerHTML = daysHtml;
+}
+
+function renderCalendarDay(dayNum, date, dayTasks, isOtherMonth, isToday) {
+  var dayOfWeek = (date.getDay() + 6) % 7;
+  var isWeekend = dayOfWeek >= 5;
+  var dateStr = date.toISOString().split('T')[0];
+
+  var classes = 'calendar-day';
+  if (isOtherMonth) classes += ' other-month';
+  if (isToday) classes += ' today';
+  if (isWeekend) classes += ' weekend';
+
+  var html = '<div class="' + classes + '" onclick="onCalendarDayClick(\'' + dateStr + '\')">';
+  html += '<div class="day-number">' + dayNum + '</div>';
+  html += '<div class="day-tasks">';
+
+  var maxTasks = 3;
+  for (var i = 0; i < Math.min(dayTasks.length, maxTasks); i++) {
+    var task = dayTasks[i];
+    var statusClass = 'status-' + task.Status;
+    var priorityClass = task.Priority === 'high' ? ' priority-high' : '';
+    html += '<div class="day-task ' + statusClass + priorityClass + '" onclick="event.stopPropagation(); openEditTaskModal(' + task.id + ')" title="' + sanitize(task.Title) + '">';
+    html += sanitize(task.Title);
+    html += '</div>';
+  }
+
+  if (dayTasks.length > maxTasks) {
+    html += '<div class="day-more">+' + (dayTasks.length - maxTasks) + ' ' + (currentLang === 'fr' ? 'autres' : 'more') + '</div>';
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+function onCalendarDayClick(dateStr) {
+  openNewTaskModalWithDate(dateStr);
+}
+
+function openNewTaskModalWithDate(dateStr) {
+  openNewTaskModal();
+  // Set the date after modal is rendered
+  setTimeout(function() {
+    var startInput = document.getElementById('task-start');
+    var dueInput = document.getElementById('task-due');
+    if (startInput) startInput.value = dateStr;
+    if (dueInput) dueInput.value = dateStr;
+  }, 50);
+}
+
+function calendarNav(dir) {
+  calendarMonth += dir;
+  if (calendarMonth > 11) {
+    calendarMonth = 0;
+    calendarYear++;
+  }
+  if (calendarMonth < 0) {
+    calendarMonth = 11;
+    calendarYear--;
+  }
+  renderCalendarView();
+}
+
+function calendarToday() {
+  calendarYear = new Date().getFullYear();
+  calendarMonth = new Date().getMonth();
+  renderCalendarView();
 }
 
 // =============================================================================

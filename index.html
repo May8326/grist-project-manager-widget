@@ -404,6 +404,163 @@
       font-weight: 500;
     }
 
+    /* ========== CALENDAR VIEW ========== */
+    .calendar-container {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .calendar-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+      min-width: 200px;
+      text-align: center;
+    }
+    .calendar-nav-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+      color: #64748b;
+      transition: all 0.15s;
+    }
+    .calendar-nav-btn:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+    .calendar-today-btn {
+      padding: 8px 16px;
+      border: 1px solid #ef4444;
+      border-radius: 10px;
+      background: white;
+      color: #ef4444;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: auto;
+      transition: all 0.15s;
+    }
+    .calendar-today-btn:hover {
+      background: #ef4444;
+      color: white;
+    }
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .calendar-weekday {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      padding: 8px 0;
+      text-transform: uppercase;
+    }
+    .calendar-weekday.weekend {
+      color: #f87171;
+    }
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .calendar-day {
+      min-height: 100px;
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 2px solid transparent;
+    }
+    .calendar-day:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+    .calendar-day.other-month {
+      opacity: 0.4;
+    }
+    .calendar-day.today {
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+    .calendar-day.today .day-number {
+      background: #ef4444;
+      color: white;
+    }
+    .calendar-day.weekend {
+      background: #fafafa;
+    }
+    .day-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    .day-tasks {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-height: 70px;
+      overflow-y: auto;
+    }
+    .day-task {
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .day-task:hover {
+      transform: scale(1.02);
+    }
+    .day-task.status-todo {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .day-task.status-progress {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .day-task.status-done {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .day-task.priority-high::before {
+      content: '●';
+      color: #ef4444;
+      margin-right: 3px;
+    }
+    .day-more {
+      font-size: 9px;
+      color: #64748b;
+      text-align: center;
+      padding: 2px;
+    }
+
     /* ========== GANTT VIEW ========== */
     .gantt-controls {
       display: flex;
@@ -1562,7 +1719,8 @@
       </div>
       <div class="header-row" style="margin-top:12px;">
         <div class="tabs-bar">
-          <button class="tab-btn active" data-tab="kanban" onclick="switchTab('kanban')">📋 <span data-i18n="tabKanban">Kanban</span></button>
+          <button class="tab-btn active" data-tab="calendar" onclick="switchTab('calendar')">📅 <span data-i18n="tabCalendar">Calendrier</span></button>
+          <button class="tab-btn" data-tab="kanban" onclick="switchTab('kanban')">📋 <span data-i18n="tabKanban">Kanban</span></button>
           <button class="tab-btn" data-tab="table" onclick="switchTab('table')">📊 <span data-i18n="tabTable">Tableau</span></button>
           <button class="tab-btn" data-tab="gantt" onclick="switchTab('gantt')">📐 <span data-i18n="tabGantt">Gantt</span></button>
           <button class="tab-btn" data-tab="templates" onclick="switchTab('templates')">🎨 <span data-i18n="tabTemplates">Templates</span></button>
@@ -1610,8 +1768,24 @@
       </div>
     </div>
 
+    <!-- TAB: CALENDAR -->
+    <div class="tab-content active" id="tab-calendar">
+      <div class="calendar-container">
+        <div class="calendar-header">
+          <button class="calendar-nav-btn" onclick="calendarNav(-1)">◀</button>
+          <h2 id="calendar-month-title"></h2>
+          <button class="calendar-nav-btn" onclick="calendarNav(1)">▶</button>
+          <button class="calendar-today-btn" onclick="calendarToday()">Aujourd'hui</button>
+        </div>
+        <div class="calendar-grid">
+          <div class="calendar-weekdays" id="calendar-weekdays"></div>
+          <div class="calendar-days" id="calendar-days"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- TAB: KANBAN -->
-    <div class="tab-content active" id="tab-kanban">
+    <div class="tab-content" id="tab-kanban">
       <div class="kanban-board" id="kanban-board"></div>
     </div>
 
