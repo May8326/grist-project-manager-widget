@@ -168,7 +168,8 @@ var i18n = {
     customFields: 'Champs personnalisés',
     manageCustomFields: 'Gérer les champs',
     addCustomField: 'Ajouter un champ',
-    fieldName: 'Nom du champ',
+    fieldName: 'Nom',
+    customFieldName: 'Nom du champ',
     fieldType: 'Type',
     fieldOptions: 'Options (séparées par virgule)',
     typeText: 'Texte',
@@ -178,7 +179,13 @@ var i18n = {
     typeSelect: 'Liste déroulante',
     customFieldCreated: 'Champ créé',
     customFieldDeleted: 'Champ supprimé',
-    noCustomFields: 'Aucun champ personnalisé'
+    noCustomFields: 'Aucun champ personnalisé',
+    categories: 'Catégories',
+    manageCategories: 'Gérer les catégories',
+    addCategory: 'Ajouter',
+    categoryCreated: 'Catégorie créée',
+    categoryDeleted: 'Catégorie supprimée',
+    noCategories: 'Aucune catégorie'
   },
   en: {
     appTitle: 'Project Management',
@@ -343,7 +350,8 @@ var i18n = {
     customFields: 'Custom Fields',
     manageCustomFields: 'Manage fields',
     addCustomField: 'Add field',
-    fieldName: 'Field name',
+    fieldName: 'Name',
+    customFieldName: 'Field name',
     fieldType: 'Type',
     fieldOptions: 'Options (comma separated)',
     typeText: 'Text',
@@ -353,7 +361,13 @@ var i18n = {
     typeSelect: 'Dropdown',
     customFieldCreated: 'Field created',
     customFieldDeleted: 'Field deleted',
-    noCustomFields: 'No custom fields'
+    noCustomFields: 'No custom fields',
+    categories: 'Categories',
+    manageCategories: 'Manage categories',
+    addCategory: 'Add',
+    categoryCreated: 'Category created',
+    categoryDeleted: 'Category deleted',
+    noCategories: 'No categories'
   }
 };
 
@@ -389,6 +403,7 @@ var comments = [];
 var timeEntries = [];
 var customFields = [];
 var customFieldValues = [];
+var categories = [];
 var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
@@ -404,6 +419,7 @@ var COMMENTS_TABLE = 'PM_Comments';
 var TIME_ENTRIES_TABLE = 'PM_TimeEntries';
 var CUSTOM_FIELDS_TABLE = 'PM_CustomFields';
 var CUSTOM_FIELD_VALUES_TABLE = 'PM_CustomFieldValues';
+var CATEGORIES_TABLE = 'PM_Categories';
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -738,6 +754,16 @@ async function ensureTables() {
       ]);
     }
 
+    if (existingTables.indexOf(CATEGORIES_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', CATEGORIES_TABLE, [
+          { id: 'Name', type: 'Text' },
+          { id: 'Color', type: 'Text' },
+          { id: 'Order', type: 'Int' }
+        ]]
+      ]);
+    }
+
     // Migration: Add missing columns to existing PM_Tasks table
     if (existingTables.indexOf(TASKS_TABLE) !== -1) {
       try {
@@ -961,6 +987,24 @@ async function loadAllData() {
     }
   } catch (e) {
     customFieldValues = [];
+  }
+
+  try {
+    var catData = await grist.docApi.fetchTable(CATEGORIES_TABLE);
+    categories = [];
+    if (catData && catData.id) {
+      for (var i = 0; i < catData.id.length; i++) {
+        categories.push({
+          id: catData.id[i],
+          Name: catData.Name ? catData.Name[i] : '',
+          Color: catData.Color ? catData.Color[i] : '#6366f1',
+          Order: catData.Order ? catData.Order[i] : 0
+        });
+      }
+    }
+    categories.sort(function(a, b) { return (a.Order || 0) - (b.Order || 0); });
+  } catch (e) {
+    categories = [];
   }
 
   refreshAllViews();
@@ -1615,6 +1659,7 @@ function renderTemplatesView() {
 function renderTeamView() {
   renderUsersList();
   renderGroupsList();
+  renderCategoriesList();
 }
 
 function renderUsersList() {
@@ -1644,7 +1689,8 @@ function renderUsersList() {
     html += '<td>' + sanitize(u.Email) + '</td>';
     html += '<td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:' + roleBg + '">' + roleLabel + '</span></td>';
     html += '<td>' + (u.Group_Name ? '<span class="assignee-chip">👥 ' + sanitize(u.Group_Name) + '</span>' : '--') + '</td>';
-    html += '<td><button class="btn-icon" onclick="deleteUser(' + u.id + ')">🗑️</button></td>';
+    html += '<td><button class="btn-icon" onclick="openEditUserModal(' + u.id + ')" title="' + t('edit') + '">✏️</button>';
+    html += '<button class="btn-icon" onclick="deleteUser(' + u.id + ')">🗑️</button></td>';
     html += '</tr>';
   }
 
@@ -1682,11 +1728,203 @@ function renderGroupsList() {
       html += '</div>';
     }
     html += '</div>';
+    html += '<button class="btn-icon" onclick="openEditGroupModal(' + g.id + ')" title="' + t('edit') + '">✏️</button>';
     html += '<button class="btn-icon" onclick="deleteGroup(' + g.id + ')">🗑️</button>';
     html += '</div>';
   }
 
   container.innerHTML = html;
+}
+
+function renderCategoriesList() {
+  var container = document.getElementById('categories-list');
+  if (!container) return;
+
+  if (categories.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">' + t('noCategories') + '</div>';
+    return;
+  }
+
+  var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+  for (var i = 0; i < categories.length; i++) {
+    var cat = categories[i];
+    html += '<span class="category-chip" style="background:' + (cat.Color || '#6366f1') + '20;color:' + (cat.Color || '#6366f1') + ';border:1px solid ' + (cat.Color || '#6366f1') + '40;">';
+    html += sanitize(cat.Name);
+    html += '</span>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function openCategoriesModal() {
+  var html = '<div class="modal-overlay" onclick="closeModal(event)">';
+  html += '<div class="modal modal-cf" onclick="event.stopPropagation()">';
+  html += '<div class="modal-header"><h3>🏷️ ' + t('manageCategories') + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-body">';
+  
+  // Existing categories
+  html += '<div class="cf-list">';
+  if (categories.length === 0) {
+    html += '<div class="cf-empty-modal">' + t('noCategories') + '</div>';
+  } else {
+    for (var i = 0; i < categories.length; i++) {
+      var cat = categories[i];
+      html += '<div class="cf-list-item">';
+      html += '<span class="category-color-dot" style="background:' + (cat.Color || '#6366f1') + ';"></span>';
+      html += '<span class="cf-list-name">' + sanitize(cat.Name) + '</span>';
+      html += '<button class="cf-delete-btn" onclick="deleteCategory(' + cat.id + ')">🗑️</button>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+  
+  // Add new category form
+  html += '<div class="cf-add-form">';
+  html += '<h4>' + t('addCategory') + '</h4>';
+  html += '<div class="cf-form-row">';
+  html += '<input type="text" id="new-cat-name" placeholder="' + t('fieldName') + '" class="cf-form-input" />';
+  html += '<input type="color" id="new-cat-color" value="#6366f1" style="width:40px;height:36px;border:none;cursor:pointer;" />';
+  html += '<button class="btn btn-primary" onclick="addCategory()">' + t('addCategory') + '</button>';
+  html += '</div>';
+  html += '</div>';
+  
+  html += '</div></div></div>';
+  
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+async function addCategory() {
+  var name = document.getElementById('new-cat-name').value.trim();
+  var color = document.getElementById('new-cat-color').value;
+  
+  if (!name) return;
+  
+  var maxOrder = categories.length > 0 ? Math.max.apply(null, categories.map(function(c) { return c.Order || 0; })) : 0;
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['AddRecord', CATEGORIES_TABLE, null, {
+        Name: name,
+        Color: color,
+        Order: maxOrder + 1
+      }]
+    ]);
+    showToast(t('categoryCreated'), 'success');
+    await loadAllData();
+    openCategoriesModal();
+  } catch (e) {
+    console.error('Error adding category:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteCategory(categoryId) {
+  if (!isOwner) return;
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['RemoveRecord', CATEGORIES_TABLE, categoryId]
+    ]);
+    showToast(t('categoryDeleted'), 'info');
+    await loadAllData();
+    openCategoriesModal();
+  } catch (e) {
+    console.error('Error deleting category:', e);
+  }
+}
+
+function openEditUserModal(userId) {
+  var user = users.find(function(u) { return u.id === userId; });
+  if (!user) return;
+
+  var groupOptions = '<option value="">--</option>';
+  for (var i = 0; i < groups.length; i++) {
+    var sel = groups[i].Name === user.Group_Name ? ' selected' : '';
+    groupOptions += '<option value="' + sanitize(groups[i].Name) + '"' + sel + '>' + sanitize(groups[i].Name) + '</option>';
+  }
+
+  var html = '<div class="modal-overlay" onclick="closeModal(event)">';
+  html += '<div class="modal" onclick="event.stopPropagation()">';
+  html += '<div class="modal-header"><h3>' + t('edit') + ' - ' + sanitize(user.Name) + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-body">';
+  html += '<div class="form-group"><label>' + t('fieldName') + '</label><input type="text" id="user-name" value="' + sanitize(user.Name) + '" /></div>';
+  html += '<div class="form-group"><label>' + t('fieldEmail') + '</label><input type="email" id="user-email" value="' + sanitize(user.Email) + '" /></div>';
+  html += '<div class="form-row">';
+  html += '<div class="form-group"><label>' + t('fieldRole') + '</label><select id="user-role">';
+  html += '<option value="member"' + (user.Role === 'member' ? ' selected' : '') + '>' + t('roleMember') + '</option>';
+  html += '<option value="admin"' + (user.Role === 'admin' ? ' selected' : '') + '>' + t('roleAdmin') + '</option>';
+  html += '<option value="viewer"' + (user.Role === 'viewer' ? ' selected' : '') + '>' + t('roleViewer') + '</option>';
+  html += '</select></div>';
+  html += '<div class="form-group"><label>' + t('fieldGroup') + '</label><select id="user-group">' + groupOptions + '</select></div>';
+  html += '</div>';
+  html += '</div>';
+  html += '<div class="modal-footer">';
+  html += '<button class="btn btn-secondary" onclick="closeModalForce()">' + t('cancel') + '</button>';
+  html += '<button class="btn btn-primary" onclick="updateUser(' + userId + ')">' + t('save') + '</button>';
+  html += '</div></div></div>';
+
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+function openEditGroupModal(groupId) {
+  var group = groups.find(function(g) { return g.id === groupId; });
+  if (!group) return;
+
+  var html = '<div class="modal-overlay" onclick="closeModal(event)">';
+  html += '<div class="modal" onclick="event.stopPropagation()">';
+  html += '<div class="modal-header"><h3>' + t('edit') + ' - ' + sanitize(group.Name) + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-body">';
+  html += '<div class="form-group"><label>' + t('fieldName') + '</label><input type="text" id="group-name" value="' + sanitize(group.Name) + '" /></div>';
+  html += '<div class="form-group"><label>' + t('fieldDescription') + '</label><textarea id="group-desc">' + sanitize(group.Description || '') + '</textarea></div>';
+  html += '</div>';
+  html += '<div class="modal-footer">';
+  html += '<button class="btn btn-secondary" onclick="closeModalForce()">' + t('cancel') + '</button>';
+  html += '<button class="btn btn-primary" onclick="updateGroup(' + groupId + ')">' + t('save') + '</button>';
+  html += '</div></div></div>';
+
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+async function updateUser(userId) {
+  var name = document.getElementById('user-name').value.trim();
+  if (!name) return;
+
+  try {
+    await grist.docApi.applyUserActions([
+      ['UpdateRecord', USERS_TABLE, userId, {
+        Name: name,
+        Email: document.getElementById('user-email').value.trim(),
+        Role: document.getElementById('user-role').value,
+        Group_Name: document.getElementById('user-group').value
+      }]
+    ]);
+    showToast(t('taskUpdated'), 'success');
+    closeModalForce();
+    await loadAllData();
+  } catch (e) {
+    console.error('Error updating user:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function updateGroup(groupId) {
+  var name = document.getElementById('group-name').value.trim();
+  if (!name) return;
+
+  try {
+    await grist.docApi.applyUserActions([
+      ['UpdateRecord', GROUPS_TABLE, groupId, {
+        Name: name,
+        Description: document.getElementById('group-desc').value.trim()
+      }]
+    ]);
+    showToast(t('taskUpdated'), 'success');
+    closeModalForce();
+    await loadAllData();
+  } catch (e) {
+    console.error('Error updating group:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 function openNewUserModal() {
@@ -2659,7 +2897,7 @@ function openCustomFieldsModal() {
   html += '<div class="cf-add-form">';
   html += '<h4>' + t('addCustomField') + '</h4>';
   html += '<div class="cf-form-row">';
-  html += '<input type="text" id="new-cf-name" placeholder="' + t('fieldName') + '" class="cf-form-input" />';
+  html += '<input type="text" id="new-cf-name" placeholder="' + t('customFieldName') + '" class="cf-form-input" />';
   html += '<select id="new-cf-type" class="cf-form-select" onchange="toggleCfOptions()">';
   html += '<option value="text">' + t('typeText') + '</option>';
   html += '<option value="number">' + t('typeNumber') + '</option>';

@@ -1318,6 +1318,20 @@
       background: white;
     }
 
+    /* ========== CATEGORIES ========== */
+    .category-chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .category-color-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
     /* ========== TOAST ========== */
     .toast-container {
       position: fixed;
@@ -1673,6 +1687,18 @@
           <div id="groups-list"></div>
         </div>
 
+      </div>
+
+      <!-- CATEGORIES SECTION -->
+      <div style="margin-top:20px;">
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h2 data-i18n="categories">Catégories</h2>
+            <p data-i18n="manageCategories">Gérer les catégories</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openCategoriesModal()">⚙️ <span data-i18n="manageCategories">Gérer</span></button>
+        </div>
+        <div id="categories-list"></div>
       </div>
     </div>
 
