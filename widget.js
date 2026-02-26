@@ -672,6 +672,7 @@ function switchTab(tabId) {
   if (tabId === 'table') renderTableView();
   if (tabId === 'gantt') renderGanttView();
   if (tabId === 'templates') renderTemplatesView();
+  if (tabId === 'stats') renderStatsView();
   if (tabId === 'team') renderTeamView();
 }
 
