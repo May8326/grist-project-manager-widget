@@ -1291,8 +1291,7 @@ function renderCalendarWeekView() {
   // Render weekdays with dates
   var weekdaysHtml = '';
   for (var d = 0; d < 7; d++) {
-    var dayDate = new Date(calendarWeekStart);
-    dayDate.setDate(dayDate.getDate() + d);
+    var dayDate = new Date(calendarWeekStart.getFullYear(), calendarWeekStart.getMonth(), calendarWeekStart.getDate() + d);
     var isWeekend = d >= 5;
     var isToday = dayDate.getTime() === today.getTime();
     weekdaysHtml += '<div class="calendar-weekday' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '') + '">';
@@ -1304,8 +1303,7 @@ function renderCalendarWeekView() {
   // Render days
   var daysHtml = '';
   for (var d = 0; d < 7; d++) {
-    var dayDate = new Date(calendarWeekStart);
-    dayDate.setDate(dayDate.getDate() + d);
+    var dayDate = new Date(calendarWeekStart.getFullYear(), calendarWeekStart.getMonth(), calendarWeekStart.getDate() + d);
     var isToday = dayDate.getTime() === today.getTime();
     var dayTasks = getTasksForDate(dayDate);
     daysHtml += renderCalendarDay(dayDate.getDate(), dayDate, dayTasks, false, isToday, true);
