@@ -1824,7 +1824,7 @@ function getWeekStart(year, weekNum) {
 function renderGanttView() {
   var yearSelect = document.getElementById('gantt-year');
   if (yearSelect.options.length === 0) {
-    for (var y = 2024; y <= 2030; y++) {
+    for (var y = 2020; y <= 2050; y++) {
       var opt = document.createElement('option');
       opt.value = y;
       opt.textContent = y;
