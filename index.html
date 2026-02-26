@@ -756,6 +756,29 @@
       transform: scale(1.05);
       box-shadow: 0 2px 8px rgba(59,130,246,0.3);
     }
+    .subtask-item.blocked {
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+    .subtask-item.blocked .subtask-checkbox {
+      opacity: 0.5;
+    }
+    .subtask-blocked-badge {
+      font-size: 12px;
+      margin-left: 4px;
+    }
+    .subtask-dep-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      opacity: 0.4;
+      transition: opacity 0.15s;
+      padding: 2px;
+    }
+    .subtask-dep-btn:hover {
+      opacity: 1;
+    }
 
     /* Subtasks in Table View */
     .toggle-btn {

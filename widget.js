@@ -568,6 +568,17 @@ function getTaskCustomFieldValue(taskId, fieldId) {
   return cfv ? cfv.Value : '';
 }
 
+function isSubtaskBlocked(subtask) {
+  if (!subtask.Blocked_By_Subtask_Id) return false;
+  var blocker = subtasks.find(function(st) { return st.id === subtask.Blocked_By_Subtask_Id; });
+  return blocker && !blocker.Completed;
+}
+
+function getSubtaskBlocker(subtask) {
+  if (!subtask.Blocked_By_Subtask_Id) return null;
+  return subtasks.find(function(st) { return st.id === subtask.Blocked_By_Subtask_Id; });
+}
+
 function getCustomFieldTypeLabel(type) {
   switch (type) {
     case 'text': return t('typeText');
@@ -785,6 +796,21 @@ async function ensureTables() {
       }
     }
 
+    // Migration: Add Blocked_By_Subtask_Id to PM_Subtasks
+    if (existingTables.indexOf(SUBTASKS_TABLE) !== -1) {
+      try {
+        var stInfo = await grist.docApi.fetchTable(SUBTASKS_TABLE);
+        var stCols = Object.keys(stInfo);
+        if (stCols.indexOf('Blocked_By_Subtask_Id') === -1) {
+          await grist.docApi.applyUserActions([
+            ['AddColumn', SUBTASKS_TABLE, 'Blocked_By_Subtask_Id', { type: 'Int' }]
+          ]);
+        }
+      } catch (e) {
+        console.log('Subtask migration completed');
+      }
+    }
+
     showToast(t('tablesCreated'), 'success');
   } catch (e) {
     console.error('Error ensuring tables:', e);
@@ -889,6 +915,7 @@ async function loadAllData() {
           Title: subtaskData.Title ? subtaskData.Title[i] : '',
           Completed: subtaskData.Completed ? subtaskData.Completed[i] : false,
           Order: subtaskData.Order ? subtaskData.Order[i] : 0,
+          Blocked_By_Subtask_Id: subtaskData.Blocked_By_Subtask_Id ? subtaskData.Blocked_By_Subtask_Id[i] : null,
           Created_At: subtaskData.Created_At ? subtaskData.Created_At[i] : null
         });
       }
@@ -2299,9 +2326,15 @@ function openEditTaskModal(taskId, preserveAssignees) {
   } else {
     for (var si = 0; si < taskSubtasks.length; si++) {
       var st = taskSubtasks[si];
-      html += '<div class="subtask-item' + (st.Completed ? ' completed' : '') + '" data-id="' + st.id + '">';
-      html += '<input type="checkbox" class="subtask-checkbox" ' + (st.Completed ? 'checked' : '') + ' onchange="toggleSubtask(' + st.id + ', this.checked)" />';
+      var stBlocked = isSubtaskBlocked(st);
+      var stBlocker = getSubtaskBlocker(st);
+      html += '<div class="subtask-item' + (st.Completed ? ' completed' : '') + (stBlocked ? ' blocked' : '') + '" data-id="' + st.id + '">';
+      html += '<input type="checkbox" class="subtask-checkbox" ' + (st.Completed ? 'checked' : '') + (stBlocked ? ' disabled' : '') + ' onchange="toggleSubtask(' + st.id + ', this.checked)" />';
       html += '<span class="subtask-title">' + sanitize(st.Title) + '</span>';
+      if (stBlocked && stBlocker) {
+        html += '<span class="subtask-blocked-badge" title="' + t('blockedBy') + ' ' + sanitize(stBlocker.Title) + '">🔒</span>';
+      }
+      html += '<button class="subtask-dep-btn" onclick="openSubtaskDepModal(' + st.id + ', ' + task.id + ')" title="' + t('dependencies') + '">🔗</button>';
       html += '<button class="subtask-delete" onclick="deleteSubtask(' + st.id + ', ' + task.id + ')" title="' + t('delete') + '">✕</button>';
       html += '</div>';
     }
@@ -2573,6 +2606,56 @@ function addAssigneeChip(taskId) {
 function removeAssigneeChip(index) {
   editAssignees.splice(index, 1);
   document.getElementById('assignee-chips').innerHTML = renderAssigneeChips();
+}
+
+function openSubtaskDepModal(subtaskId, taskId) {
+  var subtask = subtasks.find(function(st) { return st.id === subtaskId; });
+  if (!subtask) return;
+  
+  var taskSubtasks = getTaskSubtasks(taskId);
+  var otherSubtasks = taskSubtasks.filter(function(st) { return st.id !== subtaskId; });
+  
+  var html = '<div class="modal-overlay" onclick="closeModal(event)">';
+  html += '<div class="modal" style="max-width:400px;" onclick="event.stopPropagation()">';
+  html += '<div class="modal-header"><h3>🔗 ' + t('dependencies') + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-body">';
+  html += '<p style="margin-bottom:12px;font-size:12px;color:#64748b;">' + sanitize(subtask.Title) + '</p>';
+  
+  html += '<div class="form-group"><label>' + t('blockedBy') + '</label>';
+  html += '<select id="subtask-blocker-select">';
+  html += '<option value="">-- ' + t('noDependencies') + ' --</option>';
+  for (var i = 0; i < otherSubtasks.length; i++) {
+    var ost = otherSubtasks[i];
+    var sel = subtask.Blocked_By_Subtask_Id === ost.id ? ' selected' : '';
+    html += '<option value="' + ost.id + '"' + sel + '>' + sanitize(ost.Title) + '</option>';
+  }
+  html += '</select></div>';
+  
+  html += '</div>';
+  html += '<div class="modal-footer">';
+  html += '<button class="btn btn-secondary" onclick="closeModalForce()">' + t('cancel') + '</button>';
+  html += '<button class="btn btn-primary" onclick="updateSubtaskDep(' + subtaskId + ', ' + taskId + ')">' + t('save') + '</button>';
+  html += '</div></div></div>';
+  
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+async function updateSubtaskDep(subtaskId, taskId) {
+  var select = document.getElementById('subtask-blocker-select');
+  var blockerId = select.value ? parseInt(select.value) : null;
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['UpdateRecord', SUBTASKS_TABLE, subtaskId, { Blocked_By_Subtask_Id: blockerId }]
+    ]);
+    showToast(t('dependencyAdded'), 'success');
+    closeModalForce();
+    await loadAllData();
+    openEditTaskModal(taskId);
+  } catch (e) {
+    console.error('Error updating subtask dependency:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 async function quickAction(taskId, newStatus) {
