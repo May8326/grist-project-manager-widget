@@ -430,6 +430,7 @@ var timeEntries = [];
 var customFields = [];
 var customFieldValues = [];
 var categories = [];
+var tags = [];
 var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
@@ -450,6 +451,7 @@ var TIME_ENTRIES_TABLE = 'PM_TimeEntries';
 var CUSTOM_FIELDS_TABLE = 'PM_CustomFields';
 var CUSTOM_FIELD_VALUES_TABLE = 'PM_CustomFieldValues';
 var CATEGORIES_TABLE = 'PM_Categories';
+var TAGS_TABLE = 'PM_Tags';
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -806,6 +808,15 @@ async function ensureTables() {
       ]);
     }
 
+    if (existingTables.indexOf(TAGS_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', TAGS_TABLE, [
+          { id: 'Name', type: 'Text' },
+          { id: 'Color', type: 'Text' }
+        ]]
+      ]);
+    }
+
     // Migration: Add missing columns to existing PM_Tasks table
     if (existingTables.indexOf(TASKS_TABLE) !== -1) {
       try {
@@ -820,6 +831,11 @@ async function ensureTables() {
         if (existingCols.indexOf('Estimated_Hours') === -1) {
           await grist.docApi.applyUserActions([
             ['AddColumn', TASKS_TABLE, 'Estimated_Hours', { type: 'Numeric' }]
+          ]);
+        }
+        if (existingCols.indexOf('Tags') === -1) {
+          await grist.docApi.applyUserActions([
+            ['AddColumn', TASKS_TABLE, 'Tags', { type: 'Text' }]
           ]);
         }
       } catch (migrationErr) {
@@ -1063,6 +1079,22 @@ async function loadAllData() {
     categories.sort(function(a, b) { return (a.Order || 0) - (b.Order || 0); });
   } catch (e) {
     categories = [];
+  }
+
+  try {
+    var tagData = await grist.docApi.fetchTable(TAGS_TABLE);
+    tags = [];
+    if (tagData && tagData.id) {
+      for (var i = 0; i < tagData.id.length; i++) {
+        tags.push({
+          id: tagData.id[i],
+          Name: tagData.Name ? tagData.Name[i] : '',
+          Color: tagData.Color ? tagData.Color[i] : '#6366f1'
+        });
+      }
+    }
+  } catch (e) {
+    tags = [];
   }
 
   refreshAllViews();
