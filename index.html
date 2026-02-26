@@ -757,6 +757,35 @@
       box-shadow: 0 2px 8px rgba(59,130,246,0.3);
     }
 
+    /* Subtasks in Table View */
+    .table-subtasks {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .st-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      min-width: 28px;
+    }
+    .st-bar {
+      flex: 1;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      min-width: 50px;
+      max-width: 80px;
+    }
+    .st-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .st-fill.bar-todo { background: #f59e0b; }
+    .st-fill.bar-progress { background: #3b82f6; }
+    .st-fill.bar-done { background: #22c55e; }
+
     /* ========== DEPENDENCIES ========== */
     .dependencies-section {
       margin-top: 16px;
