@@ -2172,10 +2172,14 @@ function openNewTaskModal(defaultStatus) {
   html += '</div>';
 
   // Category
+  var newCategoryOptions = '<option value="">--</option>';
+  for (var nci = 0; nci < categories.length; nci++) {
+    newCategoryOptions += '<option value="' + sanitize(categories[nci].Name) + '">' + sanitize(categories[nci].Name) + '</option>';
+  }
   html += '<div class="detail-field">';
   html += '<span class="detail-field-icon">📁</span>';
   html += '<span class="detail-field-label">' + t('fieldCategory') + '</span>';
-  html += '<div class="detail-field-value"><input type="text" id="task-category" /></div>';
+  html += '<div class="detail-field-value"><select id="task-category">' + newCategoryOptions + '</select></div>';
   html += '</div>';
 
   html += '</div>'; // end left
@@ -2305,10 +2309,15 @@ function openEditTaskModal(taskId, preserveAssignees) {
   html += '</div>';
 
   // Category
+  var categoryOptions = '<option value="">--</option>';
+  for (var ci = 0; ci < categories.length; ci++) {
+    var catSel = categories[ci].Name === task.Category ? ' selected' : '';
+    categoryOptions += '<option value="' + sanitize(categories[ci].Name) + '"' + catSel + '>' + sanitize(categories[ci].Name) + '</option>';
+  }
   html += '<div class="detail-field">';
   html += '<span class="detail-field-icon">📁</span>';
   html += '<span class="detail-field-label">' + t('fieldCategory') + '</span>';
-  html += '<div class="detail-field-value"><input type="text" id="task-category" value="' + sanitize(task.Category || '') + '" /></div>';
+  html += '<div class="detail-field-value"><select id="task-category">' + categoryOptions + '</select></div>';
   html += '</div>';
 
   // === SUBTASKS SECTION ===
@@ -3116,7 +3125,11 @@ function openNewTemplateModal() {
   html += '<option value="high">' + t('priorityHigh') + '</option>';
   html += '<option value="low">' + t('priorityLow') + '</option>';
   html += '</select></div>';
-  html += '<div class="form-group"><label>' + t('fieldCategory') + '</label><input type="text" id="tpl-category" /></div>';
+  var tplCatOptions = '<option value="">--</option>';
+  for (var tci = 0; tci < categories.length; tci++) {
+    tplCatOptions += '<option value="' + sanitize(categories[tci].Name) + '">' + sanitize(categories[tci].Name) + '</option>';
+  }
+  html += '<div class="form-group"><label>' + t('fieldCategory') + '</label><select id="tpl-category">' + tplCatOptions + '</select></div>';
   html += '</div>';
   html += '<div class="form-group"><label>' + t('fieldEstimatedTime') + '</label><input type="number" id="tpl-hours" step="0.5" min="0" /></div>';
   html += '</div>';
