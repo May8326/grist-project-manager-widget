@@ -164,7 +164,21 @@ var i18n = {
     recurrenceDaily: 'Quotidienne',
     recurrenceWeekly: 'Hebdomadaire',
     recurrenceMonthly: 'Mensuelle',
-    nextOccurrence: 'Prochaine occurrence créée'
+    nextOccurrence: 'Prochaine occurrence créée',
+    customFields: 'Champs personnalisés',
+    manageCustomFields: 'Gérer les champs',
+    addCustomField: 'Ajouter un champ',
+    fieldName: 'Nom du champ',
+    fieldType: 'Type',
+    fieldOptions: 'Options (séparées par virgule)',
+    typeText: 'Texte',
+    typeNumber: 'Nombre',
+    typeDate: 'Date',
+    typeCheckbox: 'Case à cocher',
+    typeSelect: 'Liste déroulante',
+    customFieldCreated: 'Champ créé',
+    customFieldDeleted: 'Champ supprimé',
+    noCustomFields: 'Aucun champ personnalisé'
   },
   en: {
     appTitle: 'Project Management',
@@ -325,7 +339,21 @@ var i18n = {
     recurrenceDaily: 'Daily',
     recurrenceWeekly: 'Weekly',
     recurrenceMonthly: 'Monthly',
-    nextOccurrence: 'Next occurrence created'
+    nextOccurrence: 'Next occurrence created',
+    customFields: 'Custom Fields',
+    manageCustomFields: 'Manage fields',
+    addCustomField: 'Add field',
+    fieldName: 'Field name',
+    fieldType: 'Type',
+    fieldOptions: 'Options (comma separated)',
+    typeText: 'Text',
+    typeNumber: 'Number',
+    typeDate: 'Date',
+    typeCheckbox: 'Checkbox',
+    typeSelect: 'Dropdown',
+    customFieldCreated: 'Field created',
+    customFieldDeleted: 'Field deleted',
+    noCustomFields: 'No custom fields'
   }
 };
 
@@ -359,6 +387,8 @@ var subtasks = [];
 var dependencies = [];
 var comments = [];
 var timeEntries = [];
+var customFields = [];
+var customFieldValues = [];
 var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
@@ -372,6 +402,8 @@ var SUBTASKS_TABLE = 'PM_Subtasks';
 var DEPENDENCIES_TABLE = 'PM_Dependencies';
 var COMMENTS_TABLE = 'PM_Comments';
 var TIME_ENTRIES_TABLE = 'PM_TimeEntries';
+var CUSTOM_FIELDS_TABLE = 'PM_CustomFields';
+var CUSTOM_FIELD_VALUES_TABLE = 'PM_CustomFieldValues';
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -513,6 +545,24 @@ function formatDurationShort(seconds) {
   return mins + 'm';
 }
 
+function getTaskCustomFieldValue(taskId, fieldId) {
+  var cfv = customFieldValues.find(function(v) {
+    return v.Task_Id === taskId && v.Field_Id === fieldId;
+  });
+  return cfv ? cfv.Value : '';
+}
+
+function getCustomFieldTypeLabel(type) {
+  switch (type) {
+    case 'text': return t('typeText');
+    case 'number': return t('typeNumber');
+    case 'date': return t('typeDate');
+    case 'checkbox': return t('typeCheckbox');
+    case 'select': return t('typeSelect');
+    default: return type;
+  }
+}
+
 function priorityLabel(p) {
   if (p === 'high') return t('priorityHigh');
   if (p === 'medium') return t('priorityMedium');
@@ -648,6 +698,28 @@ async function ensureTables() {
           { id: 'End_Time', type: 'Date' },
           { id: 'Duration', type: 'Int' },
           { id: 'Description', type: 'Text' }
+        ]]
+      ]);
+    }
+
+    if (existingTables.indexOf(CUSTOM_FIELDS_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', CUSTOM_FIELDS_TABLE, [
+          { id: 'Name', type: 'Text' },
+          { id: 'Type', type: 'Choice', widgetOptions: JSON.stringify({ choices: ['text', 'number', 'date', 'checkbox', 'select'] }) },
+          { id: 'Options', type: 'Text' },
+          { id: 'Order', type: 'Int' },
+          { id: 'Created_At', type: 'Date' }
+        ]]
+      ]);
+    }
+
+    if (existingTables.indexOf(CUSTOM_FIELD_VALUES_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', CUSTOM_FIELD_VALUES_TABLE, [
+          { id: 'Task_Id', type: 'Int' },
+          { id: 'Field_Id', type: 'Int' },
+          { id: 'Value', type: 'Text' }
         ]]
       ]);
     }
@@ -817,6 +889,43 @@ async function loadAllData() {
     }
   } catch (e) {
     timeEntries = [];
+  }
+
+  try {
+    var cfData = await grist.docApi.fetchTable(CUSTOM_FIELDS_TABLE);
+    customFields = [];
+    if (cfData && cfData.id) {
+      for (var i = 0; i < cfData.id.length; i++) {
+        customFields.push({
+          id: cfData.id[i],
+          Name: cfData.Name ? cfData.Name[i] : '',
+          Type: cfData.Type ? cfData.Type[i] : 'text',
+          Options: cfData.Options ? cfData.Options[i] : '',
+          Order: cfData.Order ? cfData.Order[i] : 0,
+          Created_At: cfData.Created_At ? cfData.Created_At[i] : null
+        });
+      }
+    }
+    customFields.sort(function(a, b) { return (a.Order || 0) - (b.Order || 0); });
+  } catch (e) {
+    customFields = [];
+  }
+
+  try {
+    var cfvData = await grist.docApi.fetchTable(CUSTOM_FIELD_VALUES_TABLE);
+    customFieldValues = [];
+    if (cfvData && cfvData.id) {
+      for (var i = 0; i < cfvData.id.length; i++) {
+        customFieldValues.push({
+          id: cfvData.id[i],
+          Task_Id: cfvData.Task_Id ? cfvData.Task_Id[i] : null,
+          Field_Id: cfvData.Field_Id ? cfvData.Field_Id[i] : null,
+          Value: cfvData.Value ? cfvData.Value[i] : ''
+        });
+      }
+    }
+  } catch (e) {
+    customFieldValues = [];
   }
 
   refreshAllViews();
@@ -1935,6 +2044,36 @@ function openEditTaskModal(taskId) {
   html += '</div>';
   html += '</div>';
 
+  // === CUSTOM FIELDS SECTION ===
+  if (customFields.length > 0) {
+    html += '<div class="custom-fields-section">';
+    html += '<div class="custom-fields-header">';
+    html += '<span class="detail-field-icon">🏷️</span>';
+    html += '<span class="detail-field-label">' + t('customFields') + '</span>';
+    if (isOwner) html += '<button class="cf-manage-btn" onclick="openCustomFieldsModal()">⚙️</button>';
+    html += '</div>';
+    html += '<div class="custom-fields-list">';
+    for (var cfi = 0; cfi < customFields.length; cfi++) {
+      var cf = customFields[cfi];
+      var cfValue = getTaskCustomFieldValue(task.id, cf.id);
+      html += '<div class="custom-field-item">';
+      html += '<label class="cf-label">' + sanitize(cf.Name) + '</label>';
+      html += renderCustomFieldInput(cf, task.id, cfValue);
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+  } else if (isOwner) {
+    html += '<div class="custom-fields-section">';
+    html += '<div class="custom-fields-header">';
+    html += '<span class="detail-field-icon">🏷️</span>';
+    html += '<span class="detail-field-label">' + t('customFields') + '</span>';
+    html += '<button class="cf-manage-btn" onclick="openCustomFieldsModal()">⚙️</button>';
+    html += '</div>';
+    html += '<div class="cf-empty">' + t('noCustomFields') + '</div>';
+    html += '</div>';
+  }
+
   // === COMMENTS SECTION ===
   var taskComments = getTaskComments(task.id);
   html += '<div class="comments-section">';
@@ -2318,6 +2457,172 @@ async function stopTimer(taskId) {
   } catch (e) {
     console.error('Error stopping timer:', e);
     showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// =============================================================================
+// CUSTOM FIELDS
+// =============================================================================
+
+function renderCustomFieldInput(field, taskId, value) {
+  var inputId = 'cf-' + field.id;
+  var html = '';
+  
+  switch (field.Type) {
+    case 'text':
+      html = '<input type="text" id="' + inputId + '" class="cf-input" value="' + sanitize(value) + '" onchange="updateCustomFieldValue(' + taskId + ', ' + field.id + ', this.value)" />';
+      break;
+    case 'number':
+      html = '<input type="number" id="' + inputId + '" class="cf-input cf-number" value="' + sanitize(value) + '" onchange="updateCustomFieldValue(' + taskId + ', ' + field.id + ', this.value)" />';
+      break;
+    case 'date':
+      var dateVal = value ? new Date(parseInt(value) * 1000).toISOString().split('T')[0] : '';
+      html = '<input type="date" id="' + inputId + '" class="cf-input cf-date" value="' + dateVal + '" onchange="updateCustomFieldValue(' + taskId + ', ' + field.id + ', this.value ? Math.floor(new Date(this.value).getTime()/1000) : \'\')" />';
+      break;
+    case 'checkbox':
+      var checked = value === 'true' || value === '1';
+      html = '<input type="checkbox" id="' + inputId + '" class="cf-checkbox" ' + (checked ? 'checked' : '') + ' onchange="updateCustomFieldValue(' + taskId + ', ' + field.id + ', this.checked ? \'true\' : \'false\')" />';
+      break;
+    case 'select':
+      var options = field.Options ? field.Options.split(',').map(function(o) { return o.trim(); }) : [];
+      html = '<select id="' + inputId + '" class="cf-select" onchange="updateCustomFieldValue(' + taskId + ', ' + field.id + ', this.value)">';
+      html += '<option value="">--</option>';
+      for (var oi = 0; oi < options.length; oi++) {
+        html += '<option value="' + sanitize(options[oi]) + '"' + (value === options[oi] ? ' selected' : '') + '>' + sanitize(options[oi]) + '</option>';
+      }
+      html += '</select>';
+      break;
+    default:
+      html = '<input type="text" id="' + inputId + '" class="cf-input" value="' + sanitize(value) + '" />';
+  }
+  return html;
+}
+
+async function updateCustomFieldValue(taskId, fieldId, value) {
+  var existing = customFieldValues.find(function(v) {
+    return v.Task_Id === taskId && v.Field_Id === fieldId;
+  });
+  
+  try {
+    if (existing) {
+      await grist.docApi.applyUserActions([
+        ['UpdateRecord', CUSTOM_FIELD_VALUES_TABLE, existing.id, { Value: String(value) }]
+      ]);
+      existing.Value = String(value);
+    } else {
+      await grist.docApi.applyUserActions([
+        ['AddRecord', CUSTOM_FIELD_VALUES_TABLE, null, {
+          Task_Id: taskId,
+          Field_Id: fieldId,
+          Value: String(value)
+        }]
+      ]);
+      await loadAllData();
+    }
+  } catch (e) {
+    console.error('Error updating custom field value:', e);
+  }
+}
+
+function openCustomFieldsModal() {
+  var html = '<div class="modal-overlay" onclick="closeModal(event)">';
+  html += '<div class="modal modal-cf" onclick="event.stopPropagation()">';
+  html += '<div class="modal-header"><h3>🏷️ ' + t('manageCustomFields') + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-body">';
+  
+  // Existing fields
+  html += '<div class="cf-list">';
+  if (customFields.length === 0) {
+    html += '<div class="cf-empty-modal">' + t('noCustomFields') + '</div>';
+  } else {
+    for (var i = 0; i < customFields.length; i++) {
+      var cf = customFields[i];
+      html += '<div class="cf-list-item">';
+      html += '<span class="cf-list-name">' + sanitize(cf.Name) + '</span>';
+      html += '<span class="cf-list-type">' + getCustomFieldTypeLabel(cf.Type) + '</span>';
+      html += '<button class="cf-delete-btn" onclick="deleteCustomField(' + cf.id + ')">🗑️</button>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+  
+  // Add new field form
+  html += '<div class="cf-add-form">';
+  html += '<h4>' + t('addCustomField') + '</h4>';
+  html += '<div class="cf-form-row">';
+  html += '<input type="text" id="new-cf-name" placeholder="' + t('fieldName') + '" class="cf-form-input" />';
+  html += '<select id="new-cf-type" class="cf-form-select" onchange="toggleCfOptions()">';
+  html += '<option value="text">' + t('typeText') + '</option>';
+  html += '<option value="number">' + t('typeNumber') + '</option>';
+  html += '<option value="date">' + t('typeDate') + '</option>';
+  html += '<option value="checkbox">' + t('typeCheckbox') + '</option>';
+  html += '<option value="select">' + t('typeSelect') + '</option>';
+  html += '</select>';
+  html += '</div>';
+  html += '<div id="cf-options-row" class="cf-form-row" style="display:none;">';
+  html += '<input type="text" id="new-cf-options" placeholder="' + t('fieldOptions') + '" class="cf-form-input" />';
+  html += '</div>';
+  html += '<button class="btn btn-primary" onclick="addCustomField()">' + t('addCustomField') + '</button>';
+  html += '</div>';
+  
+  html += '</div></div></div>';
+  
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+function toggleCfOptions() {
+  var type = document.getElementById('new-cf-type').value;
+  document.getElementById('cf-options-row').style.display = type === 'select' ? 'flex' : 'none';
+}
+
+async function addCustomField() {
+  var name = document.getElementById('new-cf-name').value.trim();
+  var type = document.getElementById('new-cf-type').value;
+  var options = document.getElementById('new-cf-options').value.trim();
+  
+  if (!name) return;
+  
+  var maxOrder = customFields.length > 0 ? Math.max.apply(null, customFields.map(function(cf) { return cf.Order || 0; })) : 0;
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['AddRecord', CUSTOM_FIELDS_TABLE, null, {
+        Name: name,
+        Type: type,
+        Options: type === 'select' ? options : '',
+        Order: maxOrder + 1,
+        Created_At: Math.floor(Date.now() / 1000)
+      }]
+    ]);
+    showToast(t('customFieldCreated'), 'success');
+    await loadAllData();
+    openCustomFieldsModal();
+  } catch (e) {
+    console.error('Error adding custom field:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteCustomField(fieldId) {
+  if (!isOwner) return;
+  
+  try {
+    // Delete field values first
+    var valuesToDelete = customFieldValues.filter(function(v) { return v.Field_Id === fieldId; });
+    for (var i = 0; i < valuesToDelete.length; i++) {
+      await grist.docApi.applyUserActions([
+        ['RemoveRecord', CUSTOM_FIELD_VALUES_TABLE, valuesToDelete[i].id]
+      ]);
+    }
+    // Delete field
+    await grist.docApi.applyUserActions([
+      ['RemoveRecord', CUSTOM_FIELDS_TABLE, fieldId]
+    ]);
+    showToast(t('customFieldDeleted'), 'info');
+    await loadAllData();
+    openCustomFieldsModal();
+  } catch (e) {
+    console.error('Error deleting custom field:', e);
   }
 }
 
