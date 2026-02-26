@@ -1275,7 +1275,8 @@ function renderTaskCard(task) {
   var blocked = isTaskBlocked(task.id);
   var taskComments = getTaskComments(task.id);
 
-  var html = '<div class="task-card' + (blocked ? ' task-blocked' : '') + '" draggable="true" ondragstart="onDragStart(event, ' + task.id + ')" data-id="' + task.id + '" ondblclick="openEditTaskModal(' + task.id + ')">';
+  var priorityClass = 'priority-' + (task.Priority || 'medium');
+  var html = '<div class="task-card ' + priorityClass + (blocked ? ' task-blocked' : '') + '" draggable="true" ondragstart="onDragStart(event, ' + task.id + ')" data-id="' + task.id + '" ondblclick="openEditTaskModal(' + task.id + ')">';
   
   // Blocked warning badge
   if (blocked) {
