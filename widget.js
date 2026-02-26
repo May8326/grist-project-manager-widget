@@ -1264,7 +1264,11 @@ function getTasksForDate(date) {
 }
 
 function renderCalendarWeekView() {
-  var weekStart = getWeekStart(calendarWeekOffset);
+  // Calculate week start (Monday) based on offset
+  var now = new Date();
+  var dayOfWeek = now.getDay();
+  var mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  var weekStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset + (calendarWeekOffset * 7));
 
   var monthNames = currentLang === 'fr'
     ? ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
@@ -1273,18 +1277,18 @@ function renderCalendarWeekView() {
     ? ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
     : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  var weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+  var weekEndDate = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() + 6);
 
   // Update title
-  var startMonth = monthNames[weekStart.getMonth()];
-  var endMonth = monthNames[weekEnd.getMonth()];
-  var title = weekStart.getDate() + ' ' + startMonth;
+  var startMonth = monthNames[weekStartDate.getMonth()];
+  var endMonth = monthNames[weekEndDate.getMonth()];
+  var title = weekStartDate.getDate() + ' ' + startMonth;
   if (startMonth !== endMonth) {
-    title += ' - ' + weekEnd.getDate() + ' ' + endMonth;
+    title += ' - ' + weekEndDate.getDate() + ' ' + endMonth;
   } else {
-    title += ' - ' + weekEnd.getDate();
+    title += ' - ' + weekEndDate.getDate();
   }
-  title += ' ' + weekStart.getFullYear();
+  title += ' ' + weekStartDate.getFullYear();
   document.getElementById('calendar-month-title').textContent = title;
 
   var today = new Date();
@@ -1293,7 +1297,7 @@ function renderCalendarWeekView() {
   // Render weekdays with dates
   var weekdaysHtml = '';
   for (var d = 0; d < 7; d++) {
-    var dayDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
+    var dayDate = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() + d);
     var isWeekend = d >= 5;
     var isToday = dayDate.getTime() === today.getTime();
     weekdaysHtml += '<div class="calendar-weekday' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '') + '">';
@@ -1305,7 +1309,7 @@ function renderCalendarWeekView() {
   // Render days
   var daysHtml = '';
   for (var d = 0; d < 7; d++) {
-    var dayDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
+    var dayDate = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() + d);
     var isToday = dayDate.getTime() === today.getTime();
     var dayTasks = getTasksForDate(dayDate);
     daysHtml += renderCalendarDay(dayDate.getDate(), dayDate, dayTasks, false, isToday, true);
