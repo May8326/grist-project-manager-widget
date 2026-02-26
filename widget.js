@@ -1831,8 +1831,10 @@ function renderGanttView() {
       if (y === ganttYear) opt.selected = true;
       yearSelect.appendChild(opt);
     }
+  } else {
+    // Update ganttYear from select value when user changes it
+    ganttYear = parseInt(yearSelect.value);
   }
-  yearSelect.value = ganttYear;
 
   document.querySelectorAll('[data-gantt-mode]').forEach(function(btn) {
     btn.classList.toggle('active', btn.getAttribute('data-gantt-mode') === ganttMode);
