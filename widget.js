@@ -1230,10 +1230,11 @@ function setCalendarMode(mode) {
 }
 
 function getWeekStart(date) {
-  var d = new Date(date);
+  var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   var day = d.getDay();
-  var diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
-  return new Date(d.setDate(diff));
+  var diff = day === 0 ? -6 : 1 - day; // Monday = 0
+  d.setDate(d.getDate() + diff);
+  return d;
 }
 
 function getTasksForDate(date) {
@@ -1258,8 +1259,8 @@ function getTasksForDate(date) {
 }
 
 function renderCalendarWeekView() {
-  // Ensure calendarWeekStart is initialized
-  if (!calendarWeekStart) {
+  // Ensure calendarWeekStart is initialized and valid
+  if (!calendarWeekStart || isNaN(calendarWeekStart.getTime())) {
     calendarWeekStart = getWeekStart(new Date());
   }
 
