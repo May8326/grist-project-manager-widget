@@ -1698,9 +1698,9 @@ function renderTableView() {
     // Subtasks rows (hidden by default)
     for (var si = 0; si < taskSubtasks.length; si++) {
       var st = taskSubtasks[si];
-      html += '<tr class="subtask-row clickable-row" data-parent="' + task.id + '" style="display:none;" onclick="openEditTaskModal(' + task.id + ')">';
+      html += '<tr class="subtask-row" data-parent="' + task.id + '" style="display:none;">';
       html += '<td><div class="subtask-indent"><span class="subtask-arrow">└</span><span class="subtask-name' + (st.Completed ? ' completed' : '') + '">' + sanitize(st.Title) + '</span></div></td>';
-      html += '<td><span class="st-status">' + (st.Completed ? '✅' : '⬜') + '</span></td>';
+      html += '<td><span class="st-checkbox" onclick="toggleSubtaskFromTable(' + st.id + ', ' + !st.Completed + ')" style="cursor:pointer;">' + (st.Completed ? '✅' : '⬜') + '</span></td>';
       html += '<td colspan="5"></td>';
       html += '</tr>';
     }
@@ -1740,6 +1740,33 @@ function collapseAllSubtasks() {
   var btns = document.querySelectorAll('.toggle-btn');
   for (var i = 0; i < rows.length; i++) rows[i].style.display = 'none';
   for (var i = 0; i < btns.length; i++) { btns[i].textContent = '▶'; btns[i].classList.remove('expanded'); }
+}
+
+async function toggleSubtaskFromTable(subtaskId, completed) {
+  try {
+    await grist.docApi.applyUserActions([
+      ['UpdateRecord', SUBTASKS_TABLE, subtaskId, { Completed: completed }]
+    ]);
+    // Update local state
+    for (var i = 0; i < subtasks.length; i++) {
+      if (subtasks[i].id === subtaskId) {
+        subtasks[i].Completed = completed;
+        break;
+      }
+    }
+    // Refresh table view
+    renderTableView();
+    // If modal is open, refresh it too
+    var modal = document.getElementById('edit-task-modal');
+    if (modal && modal.style.display !== 'none') {
+      var subtask = subtasks.find(function(st) { return st.id === subtaskId; });
+      if (subtask) {
+        openEditTaskModal(subtask.Parent_Task_Id);
+      }
+    }
+  } catch (e) {
+    console.error('Error toggling subtask:', e);
+  }
 }
 
 // =============================================================================
