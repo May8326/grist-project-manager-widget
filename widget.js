@@ -413,7 +413,7 @@ var ganttMonth = new Date().getMonth();
 var calendarYear = new Date().getFullYear();
 var calendarMonth = new Date().getMonth();
 var calendarMode = 'month'; // 'month' or 'week'
-var calendarWeekStart = new Date(); // Start of current week
+var calendarWeekStart = null; // Will be initialized on first use
 
 var TASKS_TABLE = 'PM_Tasks';
 var USERS_TABLE = 'PM_Users';
@@ -1223,8 +1223,8 @@ function calendarToday() {
 
 function setCalendarMode(mode) {
   calendarMode = mode;
-  if (mode === 'week') {
-    calendarWeekStart = getWeekStart(new Date(calendarYear, calendarMonth, 1));
+  if (mode === 'week' && !calendarWeekStart) {
+    calendarWeekStart = getWeekStart(new Date());
   }
   renderCalendarView();
 }
@@ -1258,6 +1258,11 @@ function getTasksForDate(date) {
 }
 
 function renderCalendarWeekView() {
+  // Ensure calendarWeekStart is initialized
+  if (!calendarWeekStart) {
+    calendarWeekStart = getWeekStart(new Date());
+  }
+
   var monthNames = currentLang === 'fr'
     ? ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
     : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -1313,7 +1318,12 @@ function renderCalendarWeekView() {
 
 function calendarNav(dir) {
   if (calendarMode === 'week') {
-    calendarWeekStart.setDate(calendarWeekStart.getDate() + (dir * 7));
+    if (!calendarWeekStart) {
+      calendarWeekStart = getWeekStart(new Date());
+    }
+    var newDate = new Date(calendarWeekStart);
+    newDate.setDate(newDate.getDate() + (dir * 7));
+    calendarWeekStart = newDate;
   } else {
     calendarMonth += dir;
     if (calendarMonth > 11) {
