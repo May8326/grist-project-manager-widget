@@ -1821,6 +1821,95 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ========== STATS DASHBOARD ========== */
+    .stats-dashboard {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .stats-charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .stats-chart-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .stats-chart-card h3 {
+      margin: 0 0 16px 0;
+      font-size: 14px;
+      color: #1e293b;
+    }
+    .chart-container {
+      height: 200px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 10px 0;
+    }
+    .chart-bar {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .chart-bar-fill {
+      width: 100%;
+      border-radius: 6px 6px 0 0;
+      min-height: 4px;
+      transition: height 0.3s;
+    }
+    .chart-bar-label {
+      font-size: 10px;
+      color: #64748b;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 60px;
+    }
+    .chart-bar-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .stats-summary-item {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stats-summary-value {
+      display: block;
+      font-size: 28px;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    .stats-summary-label {
+      font-size: 12px;
+      color: #64748b;
+    }
+    body.dark-mode .stats-chart-card,
+    body.dark-mode .stats-summary-item {
+      background: #1e293b;
+      border-color: #334155;
+    }
+    body.dark-mode .stats-chart-card h3,
+    body.dark-mode .stats-summary-value {
+      color: #f1f5f9;
+    }
+
     /* ========== GLOBAL SEARCH & HEADER BUTTONS ========== */
     .global-search {
       padding: 8px 12px;
@@ -2062,6 +2151,7 @@
           <button class="tab-btn" data-tab="table" onclick="switchTab('table')">📊 <span data-i18n="tabTable">Tableau</span></button>
           <button class="tab-btn" data-tab="gantt" onclick="switchTab('gantt')">📐 <span data-i18n="tabGantt">Gantt</span></button>
           <button class="tab-btn" data-tab="templates" onclick="switchTab('templates')">🎨 <span data-i18n="tabTemplates">Templates</span></button>
+          <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">📈 <span data-i18n="tabStats">Stats</span></button>
           <button class="tab-btn" data-tab="team" onclick="switchTab('team')">👥 <span data-i18n="tabTeam">Équipe</span></button>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
@@ -2179,6 +2269,54 @@
         </div>
       </div>
       <div id="gantt-view"></div>
+    </div>
+
+    <!-- TAB: STATS -->
+    <div class="tab-content" id="tab-stats">
+      <div class="section-title">
+        <h2 data-i18n="statsTitle">Statistiques</h2>
+        <p data-i18n="statsSubtitle">Analysez la productivité de votre équipe</p>
+      </div>
+      <div class="stats-dashboard">
+        <div class="stats-charts-row">
+          <div class="stats-chart-card">
+            <h3>📊 Répartition par statut</h3>
+            <div class="chart-container" id="chart-status"></div>
+          </div>
+          <div class="stats-chart-card">
+            <h3>🎯 Répartition par priorité</h3>
+            <div class="chart-container" id="chart-priority"></div>
+          </div>
+        </div>
+        <div class="stats-charts-row">
+          <div class="stats-chart-card">
+            <h3>👥 Tâches par assigné</h3>
+            <div class="chart-container" id="chart-assignee"></div>
+          </div>
+          <div class="stats-chart-card">
+            <h3>📅 Tâches cette semaine</h3>
+            <div class="chart-container" id="chart-week"></div>
+          </div>
+        </div>
+        <div class="stats-summary">
+          <div class="stats-summary-item">
+            <span class="stats-summary-value" id="stats-completion-rate">0%</span>
+            <span class="stats-summary-label">Taux de complétion</span>
+          </div>
+          <div class="stats-summary-item">
+            <span class="stats-summary-value" id="stats-overdue-count">0</span>
+            <span class="stats-summary-label">En retard</span>
+          </div>
+          <div class="stats-summary-item">
+            <span class="stats-summary-value" id="stats-avg-time">0h</span>
+            <span class="stats-summary-label">Temps moyen/tâche</span>
+          </div>
+          <div class="stats-summary-item">
+            <span class="stats-summary-value" id="stats-total-time">0h</span>
+            <span class="stats-summary-label">Temps total</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- TAB: TEMPLATES -->

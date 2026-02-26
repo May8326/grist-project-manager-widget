@@ -94,6 +94,9 @@ var i18n = {
     statistics: 'Statistiques',
     darkMode: 'Mode sombre',
     lightMode: 'Mode clair',
+    tabStats: 'Stats',
+    statsTitle: 'Statistiques',
+    statsSubtitle: 'Analysez la productivité de votre équipe',
     useTemplate: 'Utiliser',
     totalTemplates: 'Total modèles',
     totalUsages: 'Utilisations totales',
@@ -285,6 +288,9 @@ var i18n = {
     statistics: 'Statistics',
     darkMode: 'Dark mode',
     lightMode: 'Light mode',
+    tabStats: 'Stats',
+    statsTitle: 'Statistics',
+    statsSubtitle: 'Analyze your team productivity',
     overdue: 'Overdue',
     noDate: 'No date',
     notDefined: 'Not defined',
@@ -1110,6 +1116,7 @@ function refreshAllViews() {
     if (tab === 'table') renderTableView();
     if (tab === 'gantt') renderGanttView();
     if (tab === 'templates') renderTemplatesView();
+    if (tab === 'stats') renderStatsView();
     if (tab === 'team') renderTeamView();
   }
 }
@@ -1342,7 +1349,7 @@ function renderCalendarWeekView() {
   if (startMonth !== endMonth) {
     title += ' - ' + weekEndDate.getDate() + ' ' + endMonth;
   } else {
-    title += ' - ' + weekEndDate.getDate();
+    title += ' - ' + weekEndDate.getDate() + ' ' + endMonth;
   }
   title += ' ' + weekStartDate.getFullYear();
   document.getElementById('calendar-month-title').textContent = title;
@@ -3650,6 +3657,128 @@ function applyOwnerRestrictions() {
   // Hide "Nouveau modèle" button in Templates tab for non-owners
   var templatesAddBtn = document.querySelector('#tab-templates .btn-new-task');
   if (templatesAddBtn) templatesAddBtn.style.display = isOwner ? '' : 'none';
+}
+
+// =============================================================================
+// STATS VIEW
+// =============================================================================
+
+function renderStatsView() {
+  // Status chart
+  var statusCounts = { todo: 0, progress: 0, done: 0 };
+  tasks.forEach(function(t) { statusCounts[t.Status] = (statusCounts[t.Status] || 0) + 1; });
+  var maxStatus = Math.max(statusCounts.todo, statusCounts.progress, statusCounts.done, 1);
+  
+  var statusHtml = '';
+  var statusColors = { todo: '#94a3b8', progress: '#3b82f6', done: '#22c55e' };
+  var statusLabels = { todo: t('statusTodo'), progress: t('statusProgress'), done: t('statusDone') };
+  ['todo', 'progress', 'done'].forEach(function(s) {
+    var height = (statusCounts[s] / maxStatus) * 160;
+    statusHtml += '<div class="chart-bar">';
+    statusHtml += '<span class="chart-bar-value">' + statusCounts[s] + '</span>';
+    statusHtml += '<div class="chart-bar-fill" style="height:' + height + 'px;background:' + statusColors[s] + '"></div>';
+    statusHtml += '<span class="chart-bar-label">' + statusLabels[s] + '</span>';
+    statusHtml += '</div>';
+  });
+  document.getElementById('chart-status').innerHTML = statusHtml;
+
+  // Priority chart
+  var priorityCounts = { high: 0, medium: 0, low: 0 };
+  tasks.forEach(function(t) { priorityCounts[t.Priority] = (priorityCounts[t.Priority] || 0) + 1; });
+  var maxPriority = Math.max(priorityCounts.high, priorityCounts.medium, priorityCounts.low, 1);
+  
+  var priorityHtml = '';
+  var priorityColors = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
+  var priorityLabels = { high: t('priorityHigh'), medium: t('priorityMedium'), low: t('priorityLow') };
+  ['high', 'medium', 'low'].forEach(function(p) {
+    var height = (priorityCounts[p] / maxPriority) * 160;
+    priorityHtml += '<div class="chart-bar">';
+    priorityHtml += '<span class="chart-bar-value">' + priorityCounts[p] + '</span>';
+    priorityHtml += '<div class="chart-bar-fill" style="height:' + height + 'px;background:' + priorityColors[p] + '"></div>';
+    priorityHtml += '<span class="chart-bar-label">' + priorityLabels[p] + '</span>';
+    priorityHtml += '</div>';
+  });
+  document.getElementById('chart-priority').innerHTML = priorityHtml;
+
+  // Assignee chart
+  var assigneeCounts = {};
+  tasks.forEach(function(t) {
+    if (t.Assignee) {
+      t.Assignee.split(',').forEach(function(a) {
+        var name = getUserDisplayName(a.trim());
+        assigneeCounts[name] = (assigneeCounts[name] || 0) + 1;
+      });
+    }
+  });
+  var assigneeEntries = Object.entries(assigneeCounts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5);
+  var maxAssignee = assigneeEntries.length > 0 ? assigneeEntries[0][1] : 1;
+  
+  var assigneeHtml = '';
+  var colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#22c55e'];
+  assigneeEntries.forEach(function(entry, i) {
+    var height = (entry[1] / maxAssignee) * 160;
+    assigneeHtml += '<div class="chart-bar">';
+    assigneeHtml += '<span class="chart-bar-value">' + entry[1] + '</span>';
+    assigneeHtml += '<div class="chart-bar-fill" style="height:' + height + 'px;background:' + colors[i % colors.length] + '"></div>';
+    assigneeHtml += '<span class="chart-bar-label">' + entry[0] + '</span>';
+    assigneeHtml += '</div>';
+  });
+  if (assigneeEntries.length === 0) {
+    assigneeHtml = '<div style="text-align:center;color:#94a3b8;width:100%;">Aucune donnée</div>';
+  }
+  document.getElementById('chart-assignee').innerHTML = assigneeHtml;
+
+  // Week chart (tasks due this week by day)
+  var weekDays = currentLang === 'fr' ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  var now = new Date();
+  var dayOfWeek = now.getDay();
+  var mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  var weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+  
+  var weekCounts = [0, 0, 0, 0, 0, 0, 0];
+  tasks.forEach(function(task) {
+    if (task.Due_Date) {
+      var dueDate = new Date(task.Due_Date * 1000);
+      for (var d = 0; d < 7; d++) {
+        var dayDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
+        if (dueDate.toDateString() === dayDate.toDateString()) {
+          weekCounts[d]++;
+        }
+      }
+    }
+  });
+  var maxWeek = Math.max.apply(null, weekCounts) || 1;
+  
+  var weekHtml = '';
+  weekCounts.forEach(function(count, i) {
+    var height = (count / maxWeek) * 160;
+    var isToday = i === ((now.getDay() + 6) % 7);
+    weekHtml += '<div class="chart-bar">';
+    weekHtml += '<span class="chart-bar-value">' + count + '</span>';
+    weekHtml += '<div class="chart-bar-fill" style="height:' + height + 'px;background:' + (isToday ? '#ef4444' : '#3b82f6') + '"></div>';
+    weekHtml += '<span class="chart-bar-label">' + weekDays[i] + '</span>';
+    weekHtml += '</div>';
+  });
+  document.getElementById('chart-week').innerHTML = weekHtml;
+
+  // Summary stats
+  var completionRate = tasks.length > 0 ? Math.round((statusCounts.done / tasks.length) * 100) : 0;
+  document.getElementById('stats-completion-rate').textContent = completionRate + '%';
+  
+  var overdueCount = getOverdueTasks().length;
+  document.getElementById('stats-overdue-count').textContent = overdueCount;
+  
+  // Calculate total time from time entries
+  var totalMinutes = 0;
+  timeEntries.forEach(function(te) {
+    if (te.Duration) totalMinutes += te.Duration;
+  });
+  var totalHours = Math.round(totalMinutes / 60);
+  document.getElementById('stats-total-time').textContent = totalHours + 'h';
+  
+  var avgMinutes = tasks.length > 0 ? Math.round(totalMinutes / tasks.length) : 0;
+  var avgHours = Math.round(avgMinutes / 60 * 10) / 10;
+  document.getElementById('stats-avg-time').textContent = avgHours + 'h';
 }
 
 // =============================================================================
