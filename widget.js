@@ -1153,9 +1153,14 @@ function renderCalendarView() {
 }
 
 function renderCalendarDay(dayNum, date, dayTasks, isOtherMonth, isToday, isWeekView) {
+  // Validate date
+  if (!date || isNaN(date.getTime())) {
+    console.error('Invalid date in renderCalendarDay:', date);
+    return '';
+  }
   var dayOfWeek = (date.getDay() + 6) % 7;
   var isWeekend = dayOfWeek >= 5;
-  var dateStr = date.toISOString().split('T')[0];
+  var dateStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
 
   var classes = 'calendar-day';
   if (isOtherMonth) classes += ' other-month';
