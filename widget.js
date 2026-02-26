@@ -82,6 +82,18 @@ var i18n = {
     noDate: 'Aucune date',
     notDefined: 'Non définie',
     tablesCreated: 'Tables créées automatiquement.',
+    notifications: 'Alertes',
+    overdueTasksAlert: 'tâche(s) en retard',
+    upcomingTasksAlert: 'tâche(s) à venir (3j)',
+    noAlerts: 'Aucune alerte',
+    exportCsv: 'Export CSV',
+    exportPdf: 'Export PDF',
+    searchPlaceholder: 'Rechercher...',
+    tags: 'Tags',
+    addTag: 'Ajouter tag',
+    statistics: 'Statistiques',
+    darkMode: 'Mode sombre',
+    lightMode: 'Mode clair',
     useTemplate: 'Utiliser',
     totalTemplates: 'Total modèles',
     totalUsages: 'Utilisations totales',
@@ -261,6 +273,18 @@ var i18n = {
     taskMoved: 'Task moved.',
     templateCreated: 'Template created!',
     templateDeleted: 'Template deleted.',
+    notifications: 'Alerts',
+    overdueTasksAlert: 'overdue task(s)',
+    upcomingTasksAlert: 'upcoming task(s) (3d)',
+    noAlerts: 'No alerts',
+    exportCsv: 'Export CSV',
+    exportPdf: 'Export PDF',
+    searchPlaceholder: 'Search...',
+    tags: 'Tags',
+    addTag: 'Add tag',
+    statistics: 'Statistics',
+    darkMode: 'Dark mode',
+    lightMode: 'Light mode',
     overdue: 'Overdue',
     noDate: 'No date',
     notDefined: 'Not defined',
@@ -3597,6 +3621,189 @@ function applyOwnerRestrictions() {
 }
 
 // =============================================================================
+// NOTIFICATIONS / ALERTS
+// =============================================================================
+
+function getOverdueTasks() {
+  var now = Math.floor(Date.now() / 1000);
+  return tasks.filter(function(t) {
+    return t.Due_Date && t.Due_Date < now && t.Status !== 'done';
+  });
+}
+
+function getUpcomingTasks() {
+  var now = Math.floor(Date.now() / 1000);
+  var threeDays = now + (3 * 24 * 60 * 60);
+  return tasks.filter(function(t) {
+    return t.Due_Date && t.Due_Date >= now && t.Due_Date <= threeDays && t.Status !== 'done';
+  });
+}
+
+function updateNotificationBadge() {
+  var overdue = getOverdueTasks();
+  var upcoming = getUpcomingTasks();
+  var total = overdue.length + upcoming.length;
+  var badge = document.getElementById('notif-badge');
+  if (badge) {
+    badge.textContent = total;
+    badge.classList.toggle('show', total > 0);
+  }
+}
+
+function showNotifications() {
+  var overdue = getOverdueTasks();
+  var upcoming = getUpcomingTasks();
+  
+  var html = '<div class="notif-dropdown" id="notif-dropdown">';
+  html += '<div class="notif-header">🔔 ' + t('notifications') + '</div>';
+  
+  if (overdue.length === 0 && upcoming.length === 0) {
+    html += '<div class="notif-empty">' + t('noAlerts') + '</div>';
+  } else {
+    if (overdue.length > 0) {
+      html += '<div style="padding:8px 16px;font-size:10px;color:#ef4444;font-weight:700;">⚠️ ' + overdue.length + ' ' + t('overdueTasksAlert') + '</div>';
+      for (var i = 0; i < overdue.length; i++) {
+        html += '<div class="notif-item overdue" onclick="openEditTaskModal(' + overdue[i].id + '); closeNotifications();">';
+        html += '<div class="notif-item-title">' + sanitize(overdue[i].Title) + '</div>';
+        html += '<div class="notif-item-date">📅 ' + formatDate(overdue[i].Due_Date) + '</div>';
+        html += '</div>';
+      }
+    }
+    if (upcoming.length > 0) {
+      html += '<div style="padding:8px 16px;font-size:10px;color:#f59e0b;font-weight:700;">📅 ' + upcoming.length + ' ' + t('upcomingTasksAlert') + '</div>';
+      for (var i = 0; i < upcoming.length; i++) {
+        html += '<div class="notif-item upcoming" onclick="openEditTaskModal(' + upcoming[i].id + '); closeNotifications();">';
+        html += '<div class="notif-item-title">' + sanitize(upcoming[i].Title) + '</div>';
+        html += '<div class="notif-item-date">📅 ' + formatDate(upcoming[i].Due_Date) + '</div>';
+        html += '</div>';
+      }
+    }
+  }
+  html += '</div>';
+  
+  // Remove existing dropdown
+  closeNotifications();
+  
+  // Add dropdown to button
+  var btn = document.getElementById('notifications-btn');
+  btn.style.position = 'relative';
+  btn.insertAdjacentHTML('beforeend', html);
+  
+  // Close on outside click
+  setTimeout(function() {
+    document.addEventListener('click', closeNotificationsOnOutsideClick);
+  }, 10);
+}
+
+function closeNotifications() {
+  var dropdown = document.getElementById('notif-dropdown');
+  if (dropdown) dropdown.remove();
+  document.removeEventListener('click', closeNotificationsOnOutsideClick);
+}
+
+function closeNotificationsOnOutsideClick(e) {
+  if (!e.target.closest('#notifications-btn')) {
+    closeNotifications();
+  }
+}
+
+// =============================================================================
+// GLOBAL SEARCH
+// =============================================================================
+
+function globalSearch(query) {
+  var searchInput = document.getElementById('global-search');
+  var resultsContainer = document.getElementById('search-results');
+  
+  if (!resultsContainer) {
+    searchInput.parentElement.style.position = 'relative';
+    searchInput.insertAdjacentHTML('afterend', '<div class="search-results" id="search-results"></div>');
+    resultsContainer = document.getElementById('search-results');
+  }
+  
+  if (!query || query.length < 2) {
+    resultsContainer.classList.remove('show');
+    return;
+  }
+  
+  var q = query.toLowerCase();
+  var results = tasks.filter(function(t) {
+    return (t.Title && t.Title.toLowerCase().indexOf(q) !== -1) ||
+           (t.Description && t.Description.toLowerCase().indexOf(q) !== -1) ||
+           (t.Category && t.Category.toLowerCase().indexOf(q) !== -1);
+  }).slice(0, 10);
+  
+  if (results.length === 0) {
+    resultsContainer.innerHTML = '<div class="notif-empty">Aucun résultat</div>';
+  } else {
+    var html = '';
+    for (var i = 0; i < results.length; i++) {
+      var task = results[i];
+      html += '<div class="search-result-item" onclick="openEditTaskModal(' + task.id + '); closeSearch();">';
+      html += '<div class="search-result-title">' + sanitize(task.Title) + '</div>';
+      html += '<div class="search-result-meta">' + (task.Category || '') + ' • ' + t('status' + task.Status.charAt(0).toUpperCase() + task.Status.slice(1)) + '</div>';
+      html += '</div>';
+    }
+    resultsContainer.innerHTML = html;
+  }
+  resultsContainer.classList.add('show');
+}
+
+function closeSearch() {
+  var resultsContainer = document.getElementById('search-results');
+  if (resultsContainer) resultsContainer.classList.remove('show');
+  document.getElementById('global-search').value = '';
+}
+
+// =============================================================================
+// DARK MODE
+// =============================================================================
+
+var isDarkMode = false;
+
+function toggleDarkMode() {
+  isDarkMode = !isDarkMode;
+  document.body.classList.toggle('dark-mode', isDarkMode);
+  localStorage.setItem('pm-dark-mode', isDarkMode ? '1' : '0');
+}
+
+function loadDarkModePreference() {
+  var saved = localStorage.getItem('pm-dark-mode');
+  if (saved === '1') {
+    isDarkMode = true;
+    document.body.classList.add('dark-mode');
+  }
+}
+
+// =============================================================================
+// EXPORT CSV
+// =============================================================================
+
+function exportTasks(format) {
+  if (format === 'csv') {
+    var csv = 'Titre,Description,Statut,Priorité,Catégorie,Assigné,Date début,Échéance\n';
+    for (var i = 0; i < tasks.length; i++) {
+      var t = tasks[i];
+      csv += '"' + (t.Title || '').replace(/"/g, '""') + '",';
+      csv += '"' + (t.Description || '').replace(/"/g, '""') + '",';
+      csv += '"' + (t.Status || '') + '",';
+      csv += '"' + (t.Priority || '') + '",';
+      csv += '"' + (t.Category || '') + '",';
+      csv += '"' + (t.Assignee || '') + '",';
+      csv += '"' + (t.Start_Date ? formatDate(t.Start_Date) : '') + '",';
+      csv += '"' + (t.Due_Date ? formatDate(t.Due_Date) : '') + '"\n';
+    }
+    
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'tasks_export_' + new Date().toISOString().split('T')[0] + '.csv';
+    link.click();
+    showToast(t('exportCsv') + ' ✓', 'success');
+  }
+}
+
+// =============================================================================
 // INIT
 // =============================================================================
 
@@ -3618,8 +3825,10 @@ if (!isInsideGrist()) {
       isOwner = true;
     }
 
+    loadDarkModePreference();
     applyOwnerRestrictions();
     await ensureTables();
     await loadAllData();
+    updateNotificationBadge();
   })();
 }
