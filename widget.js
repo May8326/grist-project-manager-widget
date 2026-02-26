@@ -1743,6 +1743,17 @@ function collapseAllSubtasks() {
 }
 
 async function toggleSubtaskFromTable(subtaskId, completed) {
+  // Find parent task ID before updating
+  var subtask = subtasks.find(function(st) { return st.id === subtaskId; });
+  var parentTaskId = subtask ? subtask.Parent_Task_Id : null;
+  
+  // Remember which toggles are expanded
+  var expandedTasks = [];
+  document.querySelectorAll('.toggle-btn.expanded').forEach(function(btn) {
+    var taskId = btn.id.replace('toggle-', '');
+    expandedTasks.push(parseInt(taskId));
+  });
+  
   try {
     await grist.docApi.applyUserActions([
       ['UpdateRecord', SUBTASKS_TABLE, subtaskId, { Completed: completed }]
@@ -1756,13 +1767,24 @@ async function toggleSubtaskFromTable(subtaskId, completed) {
     }
     // Refresh table view
     renderTableView();
+    
+    // Restore expanded toggles
+    expandedTasks.forEach(function(taskId) {
+      var rows = document.querySelectorAll('.subtask-row[data-parent="' + taskId + '"]');
+      var btn = document.getElementById('toggle-' + taskId);
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].style.display = 'table-row';
+      }
+      if (btn) {
+        btn.textContent = '▼';
+        btn.classList.add('expanded');
+      }
+    });
+    
     // If modal is open, refresh it too
     var modal = document.getElementById('edit-task-modal');
-    if (modal && modal.style.display !== 'none') {
-      var subtask = subtasks.find(function(st) { return st.id === subtaskId; });
-      if (subtask) {
-        openEditTaskModal(subtask.Parent_Task_Id);
-      }
+    if (modal && modal.style.display !== 'none' && parentTaskId) {
+      openEditTaskModal(parentTaskId);
     }
   } catch (e) {
     console.error('Error toggling subtask:', e);
