@@ -685,6 +685,9 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(function(tc) {
     tc.classList.toggle('active', tc.id === 'tab-' + tabId);
   });
+  // Save active tab to localStorage
+  localStorage.setItem('pm-active-tab', tabId);
+  
   if (tabId === 'calendar') renderCalendarView();
   if (tabId === 'kanban') renderKanbanView();
   if (tabId === 'table') renderTableView();
@@ -692,6 +695,13 @@ function switchTab(tabId) {
   if (tabId === 'templates') renderTemplatesView();
   if (tabId === 'stats') renderStatsView();
   if (tabId === 'team') renderTeamView();
+}
+
+function restoreActiveTab() {
+  var savedTab = localStorage.getItem('pm-active-tab');
+  if (savedTab) {
+    switchTab(savedTab);
+  }
 }
 
 // =============================================================================
@@ -4196,5 +4206,6 @@ if (!isInsideGrist()) {
     await ensureTables();
     await loadAllData();
     updateNotificationBadge();
+    restoreActiveTab();
   })();
 }
