@@ -1533,19 +1533,19 @@
 
     <!-- HEADER -->
     <div class="app-header">
-      <div class="header-row">
-        <div>
-          <h1>📋 <span data-i18n="appTitle">Gestion de Projet</span></h1>
-          <p data-i18n="appSubtitle">Organisez et suivez vos tâches avec le tableau Kanban ou la vue tableau</p>
+      <div>
+        <h1>📋 <span data-i18n="appTitle">Gestion de Projet</span></h1>
+        <p data-i18n="appSubtitle">Organisez et suivez vos tâches avec le tableau Kanban ou la vue tableau</p>
+      </div>
+      <div class="header-row" style="margin-top:12px;">
+        <div class="tabs-bar">
+          <button class="tab-btn active" data-tab="kanban" onclick="switchTab('kanban')">📋 <span data-i18n="tabKanban">Kanban</span></button>
+          <button class="tab-btn" data-tab="table" onclick="switchTab('table')">📊 <span data-i18n="tabTable">Tableau</span></button>
+          <button class="tab-btn" data-tab="gantt" onclick="switchTab('gantt')">📐 <span data-i18n="tabGantt">Gantt</span></button>
+          <button class="tab-btn" data-tab="templates" onclick="switchTab('templates')">🎨 <span data-i18n="tabTemplates">Templates</span></button>
+          <button class="tab-btn" data-tab="team" onclick="switchTab('team')">👥 <span data-i18n="tabTeam">Équipe</span></button>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <div class="tabs-bar">
-            <button class="tab-btn active" data-tab="kanban" onclick="switchTab('kanban')">📋 <span data-i18n="tabKanban">Kanban</span></button>
-            <button class="tab-btn" data-tab="table" onclick="switchTab('table')">📊 <span data-i18n="tabTable">Tableau</span></button>
-            <button class="tab-btn" data-tab="gantt" onclick="switchTab('gantt')">📐 <span data-i18n="tabGantt">Gantt</span></button>
-            <button class="tab-btn" data-tab="templates" onclick="switchTab('templates')">🎨 <span data-i18n="tabTemplates">Templates</span></button>
-            <button class="tab-btn" data-tab="team" onclick="switchTab('team')">👥 <span data-i18n="tabTeam">Équipe</span></button>
-          </div>
           <button class="btn-new-task" onclick="openNewTaskModal()">+ <span data-i18n="newTask">Nouvelle tâche</span></button>
           <div class="lang-btns">
             <button class="lang-btn active" onclick="setLang('fr')">FR</button>
