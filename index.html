@@ -686,10 +686,12 @@
       border: 1px solid #e2e8f0;
       border-radius: 12px;
       overflow-x: auto;
+      position: relative;
     }
     .gantt-table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       min-width: 900px;
     }
     .gantt-table th {
@@ -705,11 +707,19 @@
     .gantt-table th.today { background: #fef2f2; color: #ef4444; }
     .gantt-table th.weekend { background: #f8fafc; color: #cbd5e1; }
     .gantt-task-label {
-      min-width: 260px;
-      max-width: 260px;
+      min-width: 280px;
+      max-width: 280px;
       padding: 8px 12px;
-      border-right: 1px solid #e2e8f0;
+      border-right: 2px solid #e2e8f0;
       font-size: 12px;
+      position: sticky;
+      left: 0;
+      background: white;
+      z-index: 10;
+    }
+    .gantt-table thead th.gantt-task-label {
+      background: #f8fafc;
+      z-index: 11;
     }
     .gantt-task-label .task-name { font-weight: 700; }
     .gantt-task-label .task-info { font-size: 10px; color: #94a3b8; margin-top: 2px; }
