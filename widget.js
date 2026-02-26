@@ -1928,12 +1928,14 @@ function openNewTaskModal(defaultStatus) {
 
 var editAssignees = [];
 
-function openEditTaskModal(taskId) {
+function openEditTaskModal(taskId, preserveAssignees) {
   var task = tasks.find(function(t) { return t.id === taskId; });
   if (!task) return;
-
-  // Parse multi-assignees (comma separated)
-  editAssignees = task.Assignee ? task.Assignee.split(',').map(function(a) { return a.trim(); }).filter(Boolean) : [];
+  
+  // Only reset assignees if not preserving
+  if (!preserveAssignees) {
+    editAssignees = task.Assignee ? task.Assignee.split(',').map(function(a) { return a.trim(); }).filter(Boolean) : [];
+  }
 
   var groupOptions = '<option value="">--</option>';
   for (var i = 0; i < groups.length; i++) {
@@ -2366,6 +2368,9 @@ async function addSubtask(parentTaskId) {
   var title = input.value.trim();
   if (!title) return;
 
+  // Save current form state before reload
+  var savedAssignees = editAssignees.slice();
+
   var taskSubtasks = getTaskSubtasks(parentTaskId);
   var maxOrder = taskSubtasks.length > 0 ? Math.max.apply(null, taskSubtasks.map(function(st) { return st.Order || 0; })) : 0;
 
@@ -2381,7 +2386,9 @@ async function addSubtask(parentTaskId) {
     ]);
     input.value = '';
     await loadAllData();
-    openEditTaskModal(parentTaskId);
+    // Restore assignees and reopen modal
+    editAssignees = savedAssignees;
+    openEditTaskModal(parentTaskId, true);
   } catch (e) {
     console.error('Error adding subtask:', e);
     showToast('Error: ' + e.message, 'error');
@@ -2389,6 +2396,7 @@ async function addSubtask(parentTaskId) {
 }
 
 async function toggleSubtask(subtaskId, completed) {
+  var savedAssignees = editAssignees.slice();
   try {
     await grist.docApi.applyUserActions([
       ['UpdateRecord', SUBTASKS_TABLE, subtaskId, { Completed: completed }]
@@ -2404,7 +2412,8 @@ async function toggleSubtask(subtaskId, completed) {
     // Refresh the subtasks list in modal without closing
     var subtask = subtasks.find(function(st) { return st.id === subtaskId; });
     if (subtask) {
-      openEditTaskModal(subtask.Parent_Task_Id);
+      editAssignees = savedAssignees;
+      openEditTaskModal(subtask.Parent_Task_Id, true);
     }
   } catch (e) {
     console.error('Error toggling subtask:', e);
@@ -2412,13 +2421,15 @@ async function toggleSubtask(subtaskId, completed) {
 }
 
 async function deleteSubtask(subtaskId, parentTaskId) {
+  var savedAssignees = editAssignees.slice();
   try {
     await grist.docApi.applyUserActions([
       ['RemoveRecord', SUBTASKS_TABLE, subtaskId]
     ]);
     showToast(t('subtaskDeleted'), 'info');
     await loadAllData();
-    openEditTaskModal(parentTaskId);
+    editAssignees = savedAssignees;
+    openEditTaskModal(parentTaskId, true);
   } catch (e) {
     console.error('Error deleting subtask:', e);
   }
@@ -2432,6 +2443,7 @@ async function addDependency(taskId) {
   var select = document.getElementById('dep-select');
   var dependsOnId = parseInt(select.value);
   if (!dependsOnId) return;
+  var savedAssignees = editAssignees.slice();
 
   try {
     await grist.docApi.applyUserActions([
@@ -2443,7 +2455,8 @@ async function addDependency(taskId) {
     ]);
     showToast(t('dependencyAdded'), 'success');
     await loadAllData();
-    openEditTaskModal(taskId);
+    editAssignees = savedAssignees;
+    openEditTaskModal(taskId, true);
   } catch (e) {
     console.error('Error adding dependency:', e);
     showToast('Error: ' + e.message, 'error');
@@ -2455,6 +2468,7 @@ async function removeDependency(taskId, dependsOnTaskId) {
     return d.Task_Id === taskId && d.Depends_On_Task_Id === dependsOnTaskId;
   });
   if (!dep) return;
+  var savedAssignees = editAssignees.slice();
 
   try {
     await grist.docApi.applyUserActions([
@@ -2462,7 +2476,8 @@ async function removeDependency(taskId, dependsOnTaskId) {
     ]);
     showToast(t('dependencyRemoved'), 'info');
     await loadAllData();
-    openEditTaskModal(taskId);
+    editAssignees = savedAssignees;
+    openEditTaskModal(taskId, true);
   } catch (e) {
     console.error('Error removing dependency:', e);
   }
@@ -2476,6 +2491,7 @@ async function addComment(taskId) {
   var textarea = document.getElementById('new-comment-input');
   var content = textarea.value.trim();
   if (!content) return;
+  var savedAssignees = editAssignees.slice();
 
   try {
     await grist.docApi.applyUserActions([
@@ -2489,7 +2505,8 @@ async function addComment(taskId) {
     textarea.value = '';
     showToast(t('commentAdded'), 'success');
     await loadAllData();
-    openEditTaskModal(taskId);
+    editAssignees = savedAssignees;
+    openEditTaskModal(taskId, true);
   } catch (e) {
     console.error('Error adding comment:', e);
     showToast('Error: ' + e.message, 'error');
@@ -2498,13 +2515,15 @@ async function addComment(taskId) {
 
 async function deleteComment(commentId, taskId) {
   if (!isOwner) return;
+  var savedAssignees = editAssignees.slice();
   try {
     await grist.docApi.applyUserActions([
       ['RemoveRecord', COMMENTS_TABLE, commentId]
     ]);
     showToast(t('commentDeleted'), 'info');
     await loadAllData();
-    openEditTaskModal(taskId);
+    editAssignees = savedAssignees;
+    openEditTaskModal(taskId, true);
   } catch (e) {
     console.error('Error deleting comment:', e);
   }
