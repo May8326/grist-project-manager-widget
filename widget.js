@@ -1174,7 +1174,6 @@ function renderTableView() {
   html += '<thead><tr>';
   html += '<th>' + t('colTaskName') + '</th>';
   html += '<th>' + t('colStatus') + '</th>';
-  html += '<th>' + t('subtasks') + '</th>';
   html += '<th>' + t('colPriority') + '</th>';
   html += '<th>' + t('colAssignee') + '</th>';
   html += '<th>' + t('colStartDate') + '</th>';
@@ -1193,20 +1192,11 @@ function renderTableView() {
     var progressPct = taskSubtasks.length > 0 ? Math.round((completedSt / taskSubtasks.length) * 100) : 0;
     var barClass = progressPct === 100 ? 'bar-done' : (progressPct >= 50 ? 'bar-progress' : 'bar-todo');
 
-    html += '<tr>';
+    html += '<tr class="task-row">';
     html += '<td><div style="font-weight:700;">' + sanitize(task.Title) + '</div>';
     if (task.Description) html += '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">' + sanitize(task.Description).substring(0, 80) + '</div>';
     html += '</td>';
     html += '<td><span class="status-badge ' + statusClass + '">● ' + statusLabel(task.Status) + '</span></td>';
-    // Subtasks column
-    if (taskSubtasks.length > 0) {
-      html += '<td><div class="table-subtasks">';
-      html += '<span class="st-count">' + completedSt + '/' + taskSubtasks.length + '</span>';
-      html += '<div class="st-bar"><div class="st-fill ' + barClass + '" style="width:' + progressPct + '%"></div></div>';
-      html += '</div></td>';
-    } else {
-      html += '<td><span style="color:#cbd5e1;">—</span></td>';
-    }
     html += '<td><span class="priority-dot ' + dotClass + '"></span> ' + priorityLabel(task.Priority) + '</td>';
     var assigneeDisplay = task.Assignee ? task.Assignee.split(',').map(function(a) { return getUserDisplayName(a.trim()); }).join(', ') : '';
     html += '<td>' + (assigneeDisplay ? '<span class="assignee-chip">👤 ' + sanitize(assigneeDisplay) + '</span>' : '') + '</td>';
@@ -1217,10 +1207,20 @@ function renderTableView() {
     if (isOwner) html += '<button class="btn-icon" onclick="deleteTask(' + task.id + ')">🗑️</button>';
     html += '</td>';
     html += '</tr>';
+
+    // Subtasks rows
+    for (var si = 0; si < taskSubtasks.length; si++) {
+      var st = taskSubtasks[si];
+      html += '<tr class="subtask-row">';
+      html += '<td><div class="subtask-indent"><span class="subtask-arrow">└</span><span class="subtask-name' + (st.Completed ? ' completed' : '') + '">' + sanitize(st.Title) + '</span></div></td>';
+      html += '<td><span class="st-status">' + (st.Completed ? '✅' : '⬜') + '</span></td>';
+      html += '<td colspan="5"></td>';
+      html += '</tr>';
+    }
   }
 
   if (filtered.length === 0) {
-    html += '<tr><td colspan="8" style="text-align:center;padding:30px;color:#94a3b8;">' + t('noTasks') + '</td></tr>';
+    html += '<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">' + t('noTasks') + '</td></tr>';
   }
 
   html += '</tbody></table>';

@@ -758,33 +758,34 @@
     }
 
     /* Subtasks in Table View */
-    .table-subtasks {
+    .subtask-row {
+      background: #f8fafc !important;
+    }
+    .subtask-row:hover {
+      background: #f1f5f9 !important;
+    }
+    .subtask-indent {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding-left: 20px;
     }
-    .st-count {
-      font-size: 11px;
-      font-weight: 600;
+    .subtask-arrow {
+      color: #cbd5e1;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .subtask-name {
+      font-size: 12px;
       color: #64748b;
-      min-width: 28px;
     }
-    .st-bar {
-      flex: 1;
-      height: 6px;
-      background: #e2e8f0;
-      border-radius: 3px;
-      min-width: 50px;
-      max-width: 80px;
+    .subtask-name.completed {
+      text-decoration: line-through;
+      color: #94a3b8;
     }
-    .st-fill {
-      height: 100%;
-      border-radius: 3px;
-      transition: width 0.3s;
+    .st-status {
+      font-size: 12px;
     }
-    .st-fill.bar-todo { background: #f59e0b; }
-    .st-fill.bar-progress { background: #3b82f6; }
-    .st-fill.bar-done { background: #22c55e; }
 
     /* ========== DEPENDENCIES ========== */
     .dependencies-section {
