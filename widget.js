@@ -1306,34 +1306,42 @@ function renderTaskCard(task) {
     html += '</div></div>';
   }
 
-  html += '<div class="task-card-meta">';
+  // Row 1: Priority + Date
+  html += '<div class="task-card-row">';
   html += '<span class="priority-badge priority-' + task.Priority + '">' + priorityLabel(task.Priority) + '</span>';
-
   if (task.Due_Date) {
     html += '<span class="task-card-date">📅 ' + formatDate(task.Due_Date) + overdueHtml + '</span>';
   }
+  html += '</div>';
+
+  // Row 2: Assignees
   if (task.Assignee) {
+    html += '<div class="task-card-row">';
     var assigneeList = task.Assignee.split(',').map(function(a) { return a.trim(); }).filter(Boolean);
     for (var ai = 0; ai < assigneeList.length; ai++) {
       html += '<span class="task-card-assignee">👤 ' + sanitize(getUserDisplayName(assigneeList[ai])) + '</span>';
     }
+    html += '</div>';
   }
-  // Comments count
-  if (taskComments.length > 0) {
-    html += '<span class="task-card-comments">💬 ' + taskComments.length + '</span>';
-  }
-  // Time tracking
+
+  // Row 3: Other meta (comments, time, recurrence)
   var totalTime = getTaskTotalTime(task.id);
   var isTimerRunning = !!activeTimers[task.id];
-  if (totalTime > 0 || isTimerRunning) {
-    html += '<span class="task-card-time' + (isTimerRunning ? ' timer-running' : '') + '">⏱️ ' + formatDurationShort(totalTime) + (isTimerRunning ? ' ●' : '') + '</span>';
+  var hasOtherMeta = taskComments.length > 0 || totalTime > 0 || isTimerRunning || (task.Recurrence && task.Recurrence !== 'none');
+  if (hasOtherMeta) {
+    html += '<div class="task-card-row">';
+    if (taskComments.length > 0) {
+      html += '<span class="task-card-comments">💬 ' + taskComments.length + '</span>';
+    }
+    if (totalTime > 0 || isTimerRunning) {
+      html += '<span class="task-card-time' + (isTimerRunning ? ' timer-running' : '') + '">⏱️ ' + formatDurationShort(totalTime) + (isTimerRunning ? ' ●' : '') + '</span>';
+    }
+    if (task.Recurrence && task.Recurrence !== 'none') {
+      var recLabel = task.Recurrence === 'daily' ? '🔄 D' : (task.Recurrence === 'weekly' ? '🔄 W' : '🔄 M');
+      html += '<span class="task-card-recurrence">' + recLabel + '</span>';
+    }
+    html += '</div>';
   }
-  // Recurrence badge
-  if (task.Recurrence && task.Recurrence !== 'none') {
-    var recLabel = task.Recurrence === 'daily' ? '🔄 D' : (task.Recurrence === 'weekly' ? '🔄 W' : '🔄 M');
-    html += '<span class="task-card-recurrence">' + recLabel + '</span>';
-  }
-  html += '</div>';
   html += '</div>';
   return html;
 }
