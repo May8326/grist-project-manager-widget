@@ -1193,7 +1193,8 @@ function renderTableView() {
     html += '</td>';
     html += '<td><span class="status-badge ' + statusClass + '">● ' + statusLabel(task.Status) + '</span></td>';
     html += '<td><span class="priority-dot ' + dotClass + '"></span> ' + priorityLabel(task.Priority) + '</td>';
-    html += '<td>' + (task.Assignee ? '<span class="assignee-chip">👤 ' + sanitize(task.Assignee) + '</span>' : '') + '</td>';
+    var assigneeDisplay = task.Assignee ? task.Assignee.split(',').map(function(a) { return getUserDisplayName(a.trim()); }).join(', ') : '';
+    html += '<td>' + (assigneeDisplay ? '<span class="assignee-chip">👤 ' + sanitize(assigneeDisplay) + '</span>' : '') + '</td>';
     html += '<td>' + (task.Start_Date ? formatDate(task.Start_Date) : t('notDefined')) + '</td>';
     html += '<td style="' + (isOverdue(task) ? 'color:#dc2626;font-weight:700;' : '') + '">' + (task.Due_Date ? formatDate(task.Due_Date) + overdueHtml : t('noDate')) + '</td>';
     html += '<td>';
