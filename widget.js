@@ -127,7 +127,26 @@ var i18n = {
     subtaskPlaceholder: 'Nouvelle sous-tâche...',
     noSubtasks: 'Aucune sous-tâche',
     subtaskCompleted: 'Sous-tâche terminée',
-    subtaskDeleted: 'Sous-tâche supprimée'
+    subtaskDeleted: 'Sous-tâche supprimée',
+    dependencies: 'Dépendances',
+    blockedBy: 'Bloqué par',
+    blocks: 'Bloque',
+    addDependency: 'Ajouter une dépendance',
+    noDependencies: 'Aucune dépendance',
+    dependencyAdded: 'Dépendance ajoutée',
+    dependencyRemoved: 'Dépendance supprimée',
+    selectTask: 'Sélectionner une tâche...',
+    blockedWarning: 'Tâche bloquée',
+    comments: 'Commentaires',
+    addComment: 'Ajouter un commentaire',
+    commentPlaceholder: 'Écrire un commentaire...',
+    noComments: 'Aucun commentaire',
+    commentAdded: 'Commentaire ajouté',
+    commentDeleted: 'Commentaire supprimé',
+    justNow: "À l'instant",
+    minutesAgo: 'il y a {n} min',
+    hoursAgo: 'il y a {n}h',
+    daysAgo: 'il y a {n}j'
   },
   en: {
     appTitle: 'Project Management',
@@ -251,7 +270,26 @@ var i18n = {
     subtaskPlaceholder: 'New subtask...',
     noSubtasks: 'No subtasks',
     subtaskCompleted: 'Subtask completed',
-    subtaskDeleted: 'Subtask deleted'
+    subtaskDeleted: 'Subtask deleted',
+    dependencies: 'Dependencies',
+    blockedBy: 'Blocked by',
+    blocks: 'Blocks',
+    addDependency: 'Add dependency',
+    noDependencies: 'No dependencies',
+    dependencyAdded: 'Dependency added',
+    dependencyRemoved: 'Dependency removed',
+    selectTask: 'Select a task...',
+    blockedWarning: 'Blocked task',
+    comments: 'Comments',
+    addComment: 'Add comment',
+    commentPlaceholder: 'Write a comment...',
+    noComments: 'No comments',
+    commentAdded: 'Comment added',
+    commentDeleted: 'Comment deleted',
+    justNow: 'Just now',
+    minutesAgo: '{n} min ago',
+    hoursAgo: '{n}h ago',
+    daysAgo: '{n}d ago'
   }
 };
 
@@ -282,6 +320,8 @@ var users = [];
 var groups = [];
 var templates = [];
 var subtasks = [];
+var dependencies = [];
+var comments = [];
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
 var ganttMonth = new Date().getMonth();
@@ -291,6 +331,8 @@ var USERS_TABLE = 'PM_Users';
 var GROUPS_TABLE = 'PM_Groups';
 var TEMPLATES_TABLE = 'PM_Templates';
 var SUBTASKS_TABLE = 'PM_Subtasks';
+var DEPENDENCIES_TABLE = 'PM_Dependencies';
+var COMMENTS_TABLE = 'PM_Comments';
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -354,6 +396,44 @@ function getTaskProgress(task) {
   }
   var completed = taskSubtasks.filter(function(st) { return st.Completed; }).length;
   return Math.round((completed / taskSubtasks.length) * 100);
+}
+
+function getTaskDependencies(taskId) {
+  // Returns tasks that this task depends on (blockers)
+  return dependencies.filter(function(d) { return d.Task_Id === taskId; })
+    .map(function(d) {
+      return tasks.find(function(t) { return t.id === d.Depends_On_Task_Id; });
+    }).filter(Boolean);
+}
+
+function getTasksDependingOn(taskId) {
+  // Returns tasks that depend on this task (blocked by this)
+  return dependencies.filter(function(d) { return d.Depends_On_Task_Id === taskId; })
+    .map(function(d) {
+      return tasks.find(function(t) { return t.id === d.Task_Id; });
+    }).filter(Boolean);
+}
+
+function isTaskBlocked(taskId) {
+  var blockers = getTaskDependencies(taskId);
+  return blockers.some(function(blocker) {
+    return blocker && blocker.Status !== 'done';
+  });
+}
+
+function getTaskComments(taskId) {
+  return comments.filter(function(c) { return c.Task_Id === taskId; })
+    .sort(function(a, b) { return (b.Created_At || 0) - (a.Created_At || 0); });
+}
+
+function formatTimeAgo(timestamp) {
+  if (!timestamp) return '';
+  var now = Math.floor(Date.now() / 1000);
+  var diff = now - timestamp;
+  if (diff < 60) return t('justNow');
+  if (diff < 3600) return t('minutesAgo').replace('{n}', Math.floor(diff / 60));
+  if (diff < 86400) return t('hoursAgo').replace('{n}', Math.floor(diff / 3600));
+  return t('daysAgo').replace('{n}', Math.floor(diff / 86400));
 }
 
 function priorityLabel(p) {
@@ -454,6 +534,27 @@ async function ensureTables() {
           { id: 'Title', type: 'Text' },
           { id: 'Completed', type: 'Bool' },
           { id: 'Order', type: 'Int' },
+          { id: 'Created_At', type: 'Date' }
+        ]]
+      ]);
+    }
+
+    if (existingTables.indexOf(DEPENDENCIES_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', DEPENDENCIES_TABLE, [
+          { id: 'Task_Id', type: 'Int' },
+          { id: 'Depends_On_Task_Id', type: 'Int' },
+          { id: 'Created_At', type: 'Date' }
+        ]]
+      ]);
+    }
+
+    if (existingTables.indexOf(COMMENTS_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', COMMENTS_TABLE, [
+          { id: 'Task_Id', type: 'Int' },
+          { id: 'Author', type: 'Text' },
+          { id: 'Content', type: 'Text' },
           { id: 'Created_At', type: 'Date' }
         ]]
       ]);
@@ -569,6 +670,41 @@ async function loadAllData() {
     subtasks = [];
   }
 
+  try {
+    var depData = await grist.docApi.fetchTable(DEPENDENCIES_TABLE);
+    dependencies = [];
+    if (depData && depData.id) {
+      for (var i = 0; i < depData.id.length; i++) {
+        dependencies.push({
+          id: depData.id[i],
+          Task_Id: depData.Task_Id ? depData.Task_Id[i] : null,
+          Depends_On_Task_Id: depData.Depends_On_Task_Id ? depData.Depends_On_Task_Id[i] : null,
+          Created_At: depData.Created_At ? depData.Created_At[i] : null
+        });
+      }
+    }
+  } catch (e) {
+    dependencies = [];
+  }
+
+  try {
+    var commentData = await grist.docApi.fetchTable(COMMENTS_TABLE);
+    comments = [];
+    if (commentData && commentData.id) {
+      for (var i = 0; i < commentData.id.length; i++) {
+        comments.push({
+          id: commentData.id[i],
+          Task_Id: commentData.Task_Id ? commentData.Task_Id[i] : null,
+          Author: commentData.Author ? commentData.Author[i] : '',
+          Content: commentData.Content ? commentData.Content[i] : '',
+          Created_At: commentData.Created_At ? commentData.Created_At[i] : null
+        });
+      }
+    }
+  } catch (e) {
+    comments = [];
+  }
+
   refreshAllViews();
 }
 
@@ -646,8 +782,17 @@ function renderTaskCard(task) {
   var taskSubtasks = getTaskSubtasks(task.id);
   var progressPct = getTaskProgress(task);
   var completedCount = taskSubtasks.filter(function(st) { return st.Completed; }).length;
+  var blocked = isTaskBlocked(task.id);
+  var taskComments = getTaskComments(task.id);
 
-  var html = '<div class="task-card" draggable="true" ondragstart="onDragStart(event, ' + task.id + ')" data-id="' + task.id + '" ondblclick="openEditTaskModal(' + task.id + ')">';
+  var html = '<div class="task-card' + (blocked ? ' task-blocked' : '') + '" draggable="true" ondragstart="onDragStart(event, ' + task.id + ')" data-id="' + task.id + '" ondblclick="openEditTaskModal(' + task.id + ')">';
+  
+  // Blocked warning badge
+  if (blocked) {
+    var blockers = getTaskDependencies(task.id).filter(function(b) { return b && b.Status !== 'done'; });
+    html += '<div class="blocked-badge">🔒 ' + t('blockedBy') + ' ' + blockers.map(function(b) { return sanitize(b.Title); }).join(', ') + '</div>';
+  }
+  
   html += '<div class="task-card-header">';
   html += '<div class="task-card-title" style="cursor:pointer;" onclick="openEditTaskModal(' + task.id + ')">' + sanitize(task.Title) + '</div>';
   html += '<div class="task-card-actions">';
@@ -681,6 +826,10 @@ function renderTaskCard(task) {
     for (var ai = 0; ai < assigneeList.length; ai++) {
       html += '<span class="task-card-assignee">👤 ' + sanitize(assigneeList[ai]) + '</span>';
     }
+  }
+  // Comments count
+  if (taskComments.length > 0) {
+    html += '<span class="task-card-comments">💬 ' + taskComments.length + '</span>';
   }
   html += '</div>';
   html += '</div>';
@@ -1602,6 +1751,99 @@ function openEditTaskModal(taskId) {
   html += '</div>';
   html += '</div>';
 
+  // === DEPENDENCIES SECTION ===
+  var taskDeps = getTaskDependencies(task.id);
+  var taskBlocks = getTasksDependingOn(task.id);
+  html += '<div class="dependencies-section">';
+  html += '<div class="dependencies-header">';
+  html += '<span class="detail-field-icon">🔗</span>';
+  html += '<span class="detail-field-label">' + t('dependencies') + '</span>';
+  html += '</div>';
+  
+  // Blocked by
+  html += '<div class="dep-subsection">';
+  html += '<div class="dep-label">' + t('blockedBy') + ':</div>';
+  if (taskDeps.length === 0) {
+    html += '<div class="dep-empty">' + t('noDependencies') + '</div>';
+  } else {
+    html += '<div class="dep-list">';
+    for (var di = 0; di < taskDeps.length; di++) {
+      var dep = taskDeps[di];
+      var depDone = dep.Status === 'done';
+      html += '<div class="dep-item' + (depDone ? ' dep-done' : '') + '">';
+      html += '<span class="dep-status">' + (depDone ? '✅' : '⏳') + '</span>';
+      html += '<span class="dep-title">' + sanitize(dep.Title) + '</span>';
+      html += '<button class="dep-remove" onclick="removeDependency(' + task.id + ', ' + dep.id + ')">✕</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  
+  // Blocks (tasks depending on this one)
+  if (taskBlocks.length > 0) {
+    html += '<div class="dep-subsection">';
+    html += '<div class="dep-label">' + t('blocks') + ':</div>';
+    html += '<div class="dep-list">';
+    for (var bi = 0; bi < taskBlocks.length; bi++) {
+      var blk = taskBlocks[bi];
+      html += '<div class="dep-item dep-blocks">';
+      html += '<span class="dep-title">' + sanitize(blk.Title) + '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+  }
+  
+  // Add dependency
+  html += '<div class="dep-add-row">';
+  html += '<select id="dep-select">';
+  html += '<option value="">-- ' + t('selectTask') + ' --</option>';
+  var availableTasks = tasks.filter(function(t) { 
+    return t.id !== task.id && !taskDeps.some(function(d) { return d.id === t.id; }); 
+  });
+  for (var ti = 0; ti < availableTasks.length; ti++) {
+    html += '<option value="' + availableTasks[ti].id + '">' + sanitize(availableTasks[ti].Title) + '</option>';
+  }
+  html += '</select>';
+  html += '<button class="dep-add-btn" onclick="addDependency(' + task.id + ')">+</button>';
+  html += '</div>';
+  html += '</div>';
+
+  // === COMMENTS SECTION ===
+  var taskComments = getTaskComments(task.id);
+  html += '<div class="comments-section">';
+  html += '<div class="comments-header">';
+  html += '<span class="detail-field-icon">💬</span>';
+  html += '<span class="detail-field-label">' + t('comments') + '</span>';
+  html += '<span class="comment-badge">' + taskComments.length + '</span>';
+  html += '</div>';
+  
+  html += '<div class="comments-list" id="comments-list">';
+  if (taskComments.length === 0) {
+    html += '<div class="comments-empty">' + t('noComments') + '</div>';
+  } else {
+    for (var ci = 0; ci < taskComments.length; ci++) {
+      var cmt = taskComments[ci];
+      html += '<div class="comment-item">';
+      html += '<div class="comment-header">';
+      html += '<span class="comment-author">👤 ' + sanitize(cmt.Author || 'Anonyme') + '</span>';
+      html += '<span class="comment-time">' + formatTimeAgo(cmt.Created_At) + '</span>';
+      if (isOwner) html += '<button class="comment-delete" onclick="deleteComment(' + cmt.id + ', ' + task.id + ')">✕</button>';
+      html += '</div>';
+      html += '<div class="comment-content">' + sanitize(cmt.Content) + '</div>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+  
+  // Add comment input
+  html += '<div class="comment-add-row">';
+  html += '<textarea id="new-comment-input" class="comment-input" placeholder="' + t('commentPlaceholder') + '" rows="2"></textarea>';
+  html += '<button class="comment-add-btn" onclick="addComment(' + task.id + ')">' + t('addComment') + '</button>';
+  html += '</div>';
+  html += '</div>';
+
   html += '</div>'; // end left
 
   // === RIGHT PANEL ===
@@ -1766,6 +2008,92 @@ async function deleteSubtask(subtaskId, parentTaskId) {
     openEditTaskModal(parentTaskId);
   } catch (e) {
     console.error('Error deleting subtask:', e);
+  }
+}
+
+// =============================================================================
+// DEPENDENCIES CRUD
+// =============================================================================
+
+async function addDependency(taskId) {
+  var select = document.getElementById('dep-select');
+  var dependsOnId = parseInt(select.value);
+  if (!dependsOnId) return;
+
+  try {
+    await grist.docApi.applyUserActions([
+      ['AddRecord', DEPENDENCIES_TABLE, null, {
+        Task_Id: taskId,
+        Depends_On_Task_Id: dependsOnId,
+        Created_At: Math.floor(Date.now() / 1000)
+      }]
+    ]);
+    showToast(t('dependencyAdded'), 'success');
+    await loadAllData();
+    openEditTaskModal(taskId);
+  } catch (e) {
+    console.error('Error adding dependency:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function removeDependency(taskId, dependsOnTaskId) {
+  var dep = dependencies.find(function(d) {
+    return d.Task_Id === taskId && d.Depends_On_Task_Id === dependsOnTaskId;
+  });
+  if (!dep) return;
+
+  try {
+    await grist.docApi.applyUserActions([
+      ['RemoveRecord', DEPENDENCIES_TABLE, dep.id]
+    ]);
+    showToast(t('dependencyRemoved'), 'info');
+    await loadAllData();
+    openEditTaskModal(taskId);
+  } catch (e) {
+    console.error('Error removing dependency:', e);
+  }
+}
+
+// =============================================================================
+// COMMENTS CRUD
+// =============================================================================
+
+async function addComment(taskId) {
+  var textarea = document.getElementById('new-comment-input');
+  var content = textarea.value.trim();
+  if (!content) return;
+
+  try {
+    await grist.docApi.applyUserActions([
+      ['AddRecord', COMMENTS_TABLE, null, {
+        Task_Id: taskId,
+        Author: currentUserEmail || 'Utilisateur',
+        Content: content,
+        Created_At: Math.floor(Date.now() / 1000)
+      }]
+    ]);
+    textarea.value = '';
+    showToast(t('commentAdded'), 'success');
+    await loadAllData();
+    openEditTaskModal(taskId);
+  } catch (e) {
+    console.error('Error adding comment:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteComment(commentId, taskId) {
+  if (!isOwner) return;
+  try {
+    await grist.docApi.applyUserActions([
+      ['RemoveRecord', COMMENTS_TABLE, commentId]
+    ]);
+    showToast(t('commentDeleted'), 'info');
+    await loadAllData();
+    openEditTaskModal(taskId);
+  } catch (e) {
+    console.error('Error deleting comment:', e);
   }
 }
 
