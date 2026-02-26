@@ -1230,7 +1230,7 @@ function renderCalendarDay(dayNum, date, dayTasks, isOtherMonth, isToday, isWeek
   if (isToday) classes += ' today';
   if (isWeekend) classes += ' weekend';
 
-  var html = '<div class="' + classes + '" onclick="onCalendarDayClick(\'' + dateStr + '\')">';
+  var html = '<div class="' + classes + '" onclick="onCalendarDayClick(\'' + dateStr + '\')" ondragover="onCalendarDragOver(event)" ondrop="onCalendarDrop(event, \'' + dateStr + '\')">';
   if (!isWeekView) {
     html += '<div class="day-number">' + dayNum + '</div>';
   }
@@ -1241,7 +1241,7 @@ function renderCalendarDay(dayNum, date, dayTasks, isOtherMonth, isToday, isWeek
     var task = dayTasks[i];
     var statusClass = 'status-' + task.Status;
     var priorityClass = task.Priority === 'high' ? ' priority-high' : '';
-    html += '<div class="day-task ' + statusClass + priorityClass + '" onclick="event.stopPropagation(); openEditTaskModal(' + task.id + ')" title="' + sanitize(task.Title) + '">';
+    html += '<div class="day-task ' + statusClass + priorityClass + '" draggable="true" ondragstart="onCalendarTaskDragStart(event, ' + task.id + ')" onclick="event.stopPropagation(); openEditTaskModal(' + task.id + ')" title="' + sanitize(task.Title) + '">';
     html += sanitize(task.Title);
     html += '</div>';
   }
@@ -1256,6 +1256,59 @@ function renderCalendarDay(dayNum, date, dayTasks, isOtherMonth, isToday, isWeek
 
 function onCalendarDayClick(dateStr) {
   openNewTaskModalWithDate(dateStr);
+}
+
+var calendarDraggedTaskId = null;
+
+function onCalendarTaskDragStart(event, taskId) {
+  calendarDraggedTaskId = taskId;
+  event.dataTransfer.effectAllowed = 'move';
+  event.target.style.opacity = '0.5';
+}
+
+function onCalendarDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('drag-over');
+}
+
+async function onCalendarDrop(event, dateStr) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-over');
+  
+  if (!calendarDraggedTaskId) return;
+  
+  var task = tasks.find(function(t) { return t.id === calendarDraggedTaskId; });
+  if (!task) return;
+  
+  // Parse the new date
+  var parts = dateStr.split('-');
+  var newDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  var newTimestamp = Math.floor(newDate.getTime() / 1000);
+  
+  // Calculate duration if task has both start and due dates
+  var duration = 0;
+  if (task.Start_Date && task.Due_Date) {
+    duration = task.Due_Date - task.Start_Date;
+  }
+  
+  // Update the task dates
+  var updates = { Due_Date: newTimestamp };
+  if (task.Start_Date) {
+    updates.Start_Date = newTimestamp - duration;
+  }
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['UpdateRecord', TASKS_TABLE, calendarDraggedTaskId, updates]
+    ]);
+    showToast(t('taskMoved'), 'success');
+    await loadAllData();
+  } catch (e) {
+    console.error('Error moving task:', e);
+  }
+  
+  calendarDraggedTaskId = null;
 }
 
 function openNewTaskModalWithDate(dateStr) {

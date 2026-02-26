@@ -681,6 +681,19 @@
       text-align: center;
       padding: 2px;
     }
+    .day-task {
+      cursor: grab;
+    }
+    .day-task:active {
+      cursor: grabbing;
+    }
+    .calendar-day.drag-over {
+      background: #dbeafe !important;
+      border: 2px dashed #3b82f6;
+    }
+    body.dark-mode .calendar-day.drag-over {
+      background: #1e3a5f !important;
+    }
     /* Week view */
     .calendar-days.week-view {
       grid-template-columns: repeat(7, 1fr);
