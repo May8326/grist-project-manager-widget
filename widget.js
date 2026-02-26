@@ -1698,7 +1698,7 @@ function renderTableView() {
     // Subtasks rows (hidden by default)
     for (var si = 0; si < taskSubtasks.length; si++) {
       var st = taskSubtasks[si];
-      html += '<tr class="subtask-row" data-parent="' + task.id + '" style="display:none;">';
+      html += '<tr class="subtask-row clickable-row" data-parent="' + task.id + '" style="display:none;" onclick="openEditTaskModal(' + task.id + ')">';
       html += '<td><div class="subtask-indent"><span class="subtask-arrow">└</span><span class="subtask-name' + (st.Completed ? ' completed' : '') + '">' + sanitize(st.Title) + '</span></div></td>';
       html += '<td><span class="st-status">' + (st.Completed ? '✅' : '⬜') + '</span></td>';
       html += '<td colspan="5"></td>';
