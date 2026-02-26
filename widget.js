@@ -3833,6 +3833,91 @@ function renderStatsView() {
   var avgMinutes = tasks.length > 0 ? Math.round(totalMinutes / tasks.length) : 0;
   var avgHours = Math.round(avgMinutes / 60 * 10) / 10;
   document.getElementById('stats-avg-time').textContent = avgHours + 'h';
+
+  // Workload chart - Risk of overload per user
+  renderWorkloadChart();
+}
+
+function renderWorkloadChart() {
+  var workloadData = {};
+  var now = Math.floor(Date.now() / 1000);
+  
+  // Calculate workload for each assignee
+  tasks.forEach(function(task) {
+    if (task.Assignee && task.Status !== 'done') {
+      task.Assignee.split(',').forEach(function(a) {
+        var email = a.trim();
+        var name = getUserDisplayName(email);
+        if (!workloadData[name]) {
+          workloadData[name] = {
+            total: 0,
+            overdue: 0,
+            highPriority: 0,
+            estimatedHours: 0
+          };
+        }
+        workloadData[name].total++;
+        if (task.Due_Date && task.Due_Date < now) {
+          workloadData[name].overdue++;
+        }
+        if (task.Priority === 'high') {
+          workloadData[name].highPriority++;
+        }
+        if (task.Estimated_Hours) {
+          workloadData[name].estimatedHours += task.Estimated_Hours;
+        }
+      });
+    }
+  });
+
+  // Calculate risk score for each user
+  // Score = (tasks * 10) + (overdue * 30) + (highPriority * 15)
+  // Risk levels: 0-50 = low, 51-100 = medium, >100 = high
+  var workloadEntries = Object.entries(workloadData).map(function(entry) {
+    var name = entry[0];
+    var data = entry[1];
+    var score = (data.total * 10) + (data.overdue * 30) + (data.highPriority * 15);
+    var level = score <= 50 ? 'low' : (score <= 100 ? 'medium' : 'high');
+    var levelLabel = currentLang === 'fr' 
+      ? (level === 'low' ? 'OK' : (level === 'medium' ? 'Attention' : 'Surcharge'))
+      : (level === 'low' ? 'OK' : (level === 'medium' ? 'Warning' : 'Overload'));
+    return {
+      name: name,
+      total: data.total,
+      overdue: data.overdue,
+      highPriority: data.highPriority,
+      score: score,
+      level: level,
+      levelLabel: levelLabel
+    };
+  }).sort(function(a, b) { return b.score - a.score; });
+
+  var maxScore = workloadEntries.length > 0 ? Math.max(workloadEntries[0].score, 100) : 100;
+
+  var html = '';
+  if (workloadEntries.length === 0) {
+    html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + (currentLang === 'fr' ? 'Aucune tâche assignée' : 'No assigned tasks') + '</div>';
+  } else {
+    workloadEntries.forEach(function(entry) {
+      var barWidth = Math.min((entry.score / maxScore) * 100, 100);
+      html += '<div class="workload-row">';
+      html += '<div class="workload-name" title="' + entry.name + '">' + entry.name + '</div>';
+      html += '<div class="workload-bar-bg">';
+      html += '<div class="workload-bar-fill ' + entry.level + '" style="width:' + barWidth + '%"></div>';
+      html += '</div>';
+      html += '<div class="workload-stats">';
+      html += '<span class="workload-badge ' + entry.level + '">' + entry.levelLabel + '</span>';
+      html += '<span class="workload-detail">' + entry.total + ' ' + (currentLang === 'fr' ? 'tâches' : 'tasks');
+      if (entry.overdue > 0) {
+        html += ' • <span style="color:#ef4444;">' + entry.overdue + ' ' + (currentLang === 'fr' ? 'en retard' : 'overdue') + '</span>';
+      }
+      html += '</span>';
+      html += '</div>';
+      html += '</div>';
+    });
+  }
+
+  document.getElementById('chart-workload').innerHTML = html;
 }
 
 // =============================================================================

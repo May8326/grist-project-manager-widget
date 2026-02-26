@@ -1922,6 +1922,67 @@
     body.dark-mode .stats-summary-value {
       color: #f1f5f9;
     }
+    /* Workload chart */
+    .workload-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .workload-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .workload-name {
+      width: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .workload-bar-bg {
+      flex: 1;
+      height: 24px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+    .workload-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.3s;
+    }
+    .workload-bar-fill.low { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .workload-bar-fill.medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .workload-bar-fill.high { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .workload-stats {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      min-width: 180px;
+    }
+    .workload-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .workload-badge.low { background: #dcfce7; color: #16a34a; }
+    .workload-badge.medium { background: #fef3c7; color: #d97706; }
+    .workload-badge.high { background: #fee2e2; color: #dc2626; }
+    .workload-detail {
+      font-size: 10px;
+      color: #64748b;
+    }
+    body.dark-mode .workload-name {
+      color: #f1f5f9;
+    }
+    body.dark-mode .workload-bar-bg {
+      background: #334155;
+    }
 
     /* ========== GLOBAL SEARCH & HEADER BUTTONS ========== */
     .global-search {
@@ -2309,6 +2370,12 @@
           <div class="stats-chart-card">
             <h3>📅 Tâches cette semaine</h3>
             <div class="chart-container" id="chart-week"></div>
+          </div>
+        </div>
+        <div class="stats-charts-row">
+          <div class="stats-chart-card" style="grid-column: span 2;">
+            <h3>⚠️ Charge de travail (risque de surcharge)</h3>
+            <div class="workload-container" id="chart-workload"></div>
           </div>
         </div>
         <div class="stats-summary">
