@@ -605,6 +605,29 @@ function isTaskBlocked(taskId) {
   });
 }
 
+// =============================================================================
+// CONFIRM MODAL
+// =============================================================================
+
+var confirmResolve = null;
+
+function showConfirmModal(message, title) {
+  return new Promise(function(resolve) {
+    confirmResolve = resolve;
+    document.getElementById('confirm-modal-title').textContent = title || (currentLang === 'fr' ? 'Confirmation' : 'Confirmation');
+    document.getElementById('confirm-modal-message').textContent = message;
+    document.getElementById('confirm-modal').style.display = 'flex';
+  });
+}
+
+function closeConfirmModal(result) {
+  document.getElementById('confirm-modal').style.display = 'none';
+  if (confirmResolve) {
+    confirmResolve(result);
+    confirmResolve = null;
+  }
+}
+
 function getTaskComments(taskId) {
   return comments.filter(function(c) { return c.Task_Id === taskId; })
     .sort(function(a, b) { return (b.Created_At || 0) - (a.Created_At || 0); });
@@ -2636,7 +2659,8 @@ async function createGroup() {
 
 async function deleteUser(userId) {
   if (!isOwner) return;
-  if (!confirm(t('confirmDeleteUser'))) return;
+  var confirmed = await showConfirmModal(t('confirmDeleteUser'), currentLang === 'fr' ? 'Supprimer l\'utilisateur' : 'Delete user');
+  if (!confirmed) return;
   try {
     await grist.docApi.applyUserActions([
       ['RemoveRecord', USERS_TABLE, userId]
@@ -2650,7 +2674,8 @@ async function deleteUser(userId) {
 
 async function deleteGroup(groupId) {
   if (!isOwner) return;
-  if (!confirm(t('confirmDeleteGroup'))) return;
+  var confirmed = await showConfirmModal(t('confirmDeleteGroup'), currentLang === 'fr' ? 'Supprimer le groupe' : 'Delete group');
+  if (!confirmed) return;
   try {
     await grist.docApi.applyUserActions([
       ['RemoveRecord', GROUPS_TABLE, groupId]
@@ -3851,7 +3876,8 @@ async function updateTask(taskId) {
 
 async function deleteTask(taskId) {
   if (!isOwner) return;
-  if (!confirm(t('confirmDelete'))) return;
+  var confirmed = await showConfirmModal(t('confirmDelete'), currentLang === 'fr' ? 'Supprimer la tâche' : 'Delete task');
+  if (!confirmed) return;
   try {
     await grist.docApi.applyUserActions([
       ['RemoveRecord', TASKS_TABLE, taskId]
@@ -3891,7 +3917,8 @@ async function createTemplate() {
 
 async function deleteTemplate(tplId) {
   if (!isOwner) return;
-  if (!confirm(t('confirmDeleteTemplate'))) return;
+  var confirmed = await showConfirmModal(t('confirmDeleteTemplate'), currentLang === 'fr' ? 'Supprimer le modèle' : 'Delete template');
+  if (!confirmed) return;
   try {
     await grist.docApi.applyUserActions([
       ['RemoveRecord', TEMPLATES_TABLE, tplId]
@@ -4254,7 +4281,8 @@ async function saveProject() {
 }
 
 async function deleteProject(projectId) {
-  if (!confirm(t('confirmDelete'))) return;
+  var confirmed = await showConfirmModal(t('confirmDelete'), currentLang === 'fr' ? 'Supprimer le projet' : 'Delete project');
+  if (!confirmed) return;
   
   try {
     await grist.docApi.applyUserActions([
@@ -4432,7 +4460,8 @@ async function saveTag() {
 }
 
 async function deleteTag(tagId) {
-  if (!confirm(t('confirmDelete'))) return;
+  var confirmed = await showConfirmModal(t('confirmDelete'), currentLang === 'fr' ? 'Supprimer le tag' : 'Delete tag');
+  if (!confirmed) return;
   
   try {
     await grist.docApi.applyUserActions([

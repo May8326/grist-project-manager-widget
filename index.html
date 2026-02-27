@@ -1046,6 +1046,49 @@
     body.dark-mode .modal-content {
       background: #1e293b;
     }
+    /* Confirm Modal */
+    .confirm-modal-content {
+      max-width: 360px;
+      text-align: center;
+      padding: 30px;
+    }
+    .confirm-modal-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    .confirm-modal-content h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 0 0 8px 0;
+    }
+    .confirm-modal-content p {
+      font-size: 14px;
+      color: #64748b;
+      margin: 0 0 24px 0;
+    }
+    .confirm-modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .confirm-modal-buttons .btn {
+      min-width: 100px;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+      border: none;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    body.dark-mode .confirm-modal-content h3 {
+      color: #f1f5f9;
+    }
+    body.dark-mode .confirm-modal-content p {
+      color: #94a3b8;
+    }
     body.dark-mode .modal-header {
       border-color: #334155;
     }
@@ -2903,6 +2946,19 @@
 
   <!-- MODAL CONTAINER -->
   <div id="modal-container"></div>
+
+  <!-- CONFIRM MODAL -->
+  <div id="confirm-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content confirm-modal-content">
+      <div class="confirm-modal-icon">⚠️</div>
+      <h3 id="confirm-modal-title">Confirmation</h3>
+      <p id="confirm-modal-message">Êtes-vous sûr ?</p>
+      <div class="confirm-modal-buttons">
+        <button class="btn btn-secondary" onclick="closeConfirmModal(false)">Annuler</button>
+        <button class="btn btn-danger" onclick="closeConfirmModal(true)">Supprimer</button>
+      </div>
+    </div>
+  </div>
 
   <!-- PROJECT MODAL -->
   <div id="project-modal" class="modal-overlay" style="display:none;">
