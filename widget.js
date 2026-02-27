@@ -106,6 +106,17 @@ var i18n = {
     overdueLabel: 'En retard',
     avgTimePerTask: 'Temps moyen/tâche',
     totalTime: 'Temps total',
+    allProjects: 'Tous les projets',
+    manageProjects: 'Gérer les projets',
+    project: 'Projet',
+    projectName: 'Nom du projet',
+    projectDescription: 'Description',
+    projectColor: 'Couleur',
+    projectStatus: 'Statut',
+    addProject: 'Ajouter un projet',
+    editProject: 'Modifier le projet',
+    deleteProject: 'Supprimer le projet',
+    noProject: 'Sans projet',
     useTemplate: 'Utiliser',
     totalTemplates: 'Total modèles',
     totalUsages: 'Utilisations totales',
@@ -309,6 +320,17 @@ var i18n = {
     overdueLabel: 'Overdue',
     avgTimePerTask: 'Avg time/task',
     totalTime: 'Total time',
+    allProjects: 'All projects',
+    manageProjects: 'Manage projects',
+    project: 'Project',
+    projectName: 'Project name',
+    projectDescription: 'Description',
+    projectColor: 'Color',
+    projectStatus: 'Status',
+    addProject: 'Add project',
+    editProject: 'Edit project',
+    deleteProject: 'Delete project',
+    noProject: 'No project',
     overdue: 'Overdue',
     noDate: 'No date',
     notDefined: 'Not defined',
@@ -455,6 +477,8 @@ var customFields = [];
 var customFieldValues = [];
 var categories = [];
 var tags = [];
+var projects = [];
+var currentProjectId = null; // null = all projects
 var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
@@ -476,6 +500,7 @@ var CUSTOM_FIELDS_TABLE = 'PM_CustomFields';
 var CUSTOM_FIELD_VALUES_TABLE = 'PM_CustomFieldValues';
 var CATEGORIES_TABLE = 'PM_Categories';
 var TAGS_TABLE = 'PM_Tags';
+var PROJECTS_TABLE = 'PM_Projects';
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -852,6 +877,19 @@ async function ensureTables() {
       ]);
     }
 
+    if (existingTables.indexOf(PROJECTS_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', PROJECTS_TABLE, [
+          { id: 'Name', type: 'Text' },
+          { id: 'Description', type: 'Text' },
+          { id: 'Color', type: 'Text' },
+          { id: 'Status', type: 'Choice', widgetOptions: JSON.stringify({ choices: ['active', 'archived', 'completed'] }) },
+          { id: 'Start_Date', type: 'Date' },
+          { id: 'End_Date', type: 'Date' }
+        ]]
+      ]);
+    }
+
     // Migration: Add missing columns to existing PM_Tasks table
     if (existingTables.indexOf(TASKS_TABLE) !== -1) {
       try {
@@ -871,6 +909,11 @@ async function ensureTables() {
         if (existingCols.indexOf('Tags') === -1) {
           await grist.docApi.applyUserActions([
             ['AddColumn', TASKS_TABLE, 'Tags', { type: 'Text' }]
+          ]);
+        }
+        if (existingCols.indexOf('Project_Id') === -1) {
+          await grist.docApi.applyUserActions([
+            ['AddColumn', TASKS_TABLE, 'Project_Id', { type: 'Ref:PM_Projects' }]
           ]);
         }
       } catch (migrationErr) {
@@ -922,7 +965,8 @@ async function loadAllData() {
           Category: taskData.Category ? taskData.Category[i] : '',
           Recurrence: taskData.Recurrence ? taskData.Recurrence[i] : 'none',
           Estimated_Hours: taskData.Estimated_Hours ? taskData.Estimated_Hours[i] : 0,
-          Created_At: taskData.Created_At ? taskData.Created_At[i] : null
+          Created_At: taskData.Created_At ? taskData.Created_At[i] : null,
+          Project_Id: taskData.Project_Id ? taskData.Project_Id[i] : null
         });
       }
     }
@@ -1132,7 +1176,66 @@ async function loadAllData() {
     tags = [];
   }
 
+  try {
+    var projData = await grist.docApi.fetchTable(PROJECTS_TABLE);
+    projects = [];
+    if (projData && projData.id) {
+      for (var i = 0; i < projData.id.length; i++) {
+        projects.push({
+          id: projData.id[i],
+          Name: projData.Name ? projData.Name[i] : '',
+          Description: projData.Description ? projData.Description[i] : '',
+          Color: projData.Color ? projData.Color[i] : '#6366f1',
+          Status: projData.Status ? projData.Status[i] : 'active',
+          Start_Date: projData.Start_Date ? projData.Start_Date[i] : null,
+          End_Date: projData.End_Date ? projData.End_Date[i] : null
+        });
+      }
+    }
+  } catch (e) {
+    projects = [];
+  }
+
+  renderProjectSelector();
   refreshAllViews();
+}
+
+function renderProjectSelector() {
+  var container = document.getElementById('project-selector');
+  if (!container) return;
+  
+  var html = '<select id="project-filter" onchange="filterByProject(this.value)">';
+  html += '<option value="">' + t('allProjects') + '</option>';
+  projects.forEach(function(proj) {
+    var selected = currentProjectId === proj.id ? ' selected' : '';
+    html += '<option value="' + proj.id + '"' + selected + '>' + sanitize(proj.Name) + '</option>';
+  });
+  html += '</select>';
+  html += '<button class="btn-icon" onclick="openProjectModal()" title="' + t('manageProjects') + '">⚙️</button>';
+  container.innerHTML = html;
+}
+
+function filterByProject(projectId) {
+  currentProjectId = projectId ? parseInt(projectId) : null;
+  localStorage.setItem('pm-current-project', currentProjectId || '');
+  refreshAllViews();
+}
+
+function getFilteredTasks() {
+  if (!currentProjectId) return tasks;
+  return tasks.filter(function(t) { return t.Project_Id === currentProjectId; });
+}
+
+function getProjectName(projectId) {
+  if (!projectId) return '';
+  var proj = projects.find(function(p) { return p.id === projectId; });
+  return proj ? proj.Name : '';
+}
+
+function getProjectColor(projectId) {
+  if (!projectId) return '#94a3b8';
+  var proj = projects.find(function(p) { return p.id === projectId; });
+  return proj ? (proj.Color || '#6366f1') : '#94a3b8';
 }
 
 function refreshAllViews() {
@@ -2640,6 +2743,18 @@ function openNewTaskModal(defaultStatus) {
   html += '</div>';
   html += '</div>';
 
+  // Project
+  var projectOptions = '<option value="">' + t('noProject') + '</option>';
+  for (var pi = 0; pi < projects.length; pi++) {
+    var projSelected = currentProjectId === projects[pi].id ? ' selected' : '';
+    projectOptions += '<option value="' + projects[pi].id + '"' + projSelected + '>' + sanitize(projects[pi].Name) + '</option>';
+  }
+  html += '<div class="detail-field">';
+  html += '<span class="detail-field-icon">📂</span>';
+  html += '<span class="detail-field-label">' + t('project') + '</span>';
+  html += '<div class="detail-field-value"><select id="task-project">' + projectOptions + '</select></div>';
+  html += '</div>';
+
   // Category
   var newCategoryOptions = '<option value="">--</option>';
   for (var nci = 0; nci < categories.length; nci++) {
@@ -2775,6 +2890,18 @@ function openEditTaskModal(taskId, preserveAssignees) {
   html += '<span class="detail-field-icon">👥</span>';
   html += '<span class="detail-field-label">' + t('fieldGroup') + '</span>';
   html += '<div class="detail-field-value"><select id="task-group">' + groupOptions + '</select></div>';
+  html += '</div>';
+
+  // Project
+  var projectOptions = '<option value="">' + t('noProject') + '</option>';
+  for (var pi = 0; pi < projects.length; pi++) {
+    var projSel = projects[pi].id === task.Project_Id ? ' selected' : '';
+    projectOptions += '<option value="' + projects[pi].id + '"' + projSel + '>' + sanitize(projects[pi].Name) + '</option>';
+  }
+  html += '<div class="detail-field">';
+  html += '<span class="detail-field-icon">📂</span>';
+  html += '<span class="detail-field-label">' + t('project') + '</span>';
+  html += '<div class="detail-field-value"><select id="task-project">' + projectOptions + '</select></div>';
   html += '</div>';
 
   // Category
@@ -3628,6 +3755,9 @@ async function createTask() {
   var title = document.getElementById('task-title').value.trim();
   if (!title) return;
 
+  var projectEl = document.getElementById('task-project');
+  var projectId = projectEl && projectEl.value ? parseInt(projectEl.value) : null;
+
   var record = {
     Title: title,
     Description: document.getElementById('task-desc').value.trim(),
@@ -3638,6 +3768,7 @@ async function createTask() {
     Start_Date: toEpoch(document.getElementById('task-start').value),
     Due_Date: toEpoch(document.getElementById('task-due').value),
     Category: document.getElementById('task-category').value.trim(),
+    Project_Id: projectId,
     Created_At: Math.floor(Date.now() / 1000)
   };
 
@@ -3664,6 +3795,9 @@ async function updateTask(taskId) {
   var recurrenceEl = document.getElementById('task-recurrence');
   var newRecurrence = recurrenceEl ? recurrenceEl.value : (task ? task.Recurrence : 'none');
 
+  var projectEl = document.getElementById('task-project');
+  var projectId = projectEl && projectEl.value ? parseInt(projectEl.value) : null;
+
   var record = {
     Title: title,
     Description: document.getElementById('task-desc').value.trim(),
@@ -3674,6 +3808,7 @@ async function updateTask(taskId) {
     Start_Date: toEpoch(document.getElementById('task-start').value),
     Due_Date: toEpoch(document.getElementById('task-due').value),
     Category: document.getElementById('task-category').value.trim(),
+    Project_Id: projectId,
     Recurrence: newRecurrence
   };
 
@@ -3996,6 +4131,125 @@ function renderWorkloadChart() {
   }
 
   document.getElementById('chart-workload').innerHTML = html;
+}
+
+// =============================================================================
+// PROJECT MANAGEMENT
+// =============================================================================
+
+function openProjectModal() {
+  document.getElementById('project-modal').style.display = 'flex';
+  document.getElementById('edit-project-id').value = '';
+  document.getElementById('project-name').value = '';
+  document.getElementById('project-description').value = '';
+  document.getElementById('project-color').value = '#6366f1';
+  document.getElementById('project-status').value = 'active';
+  document.getElementById('project-form-title').textContent = t('addProject');
+  renderProjectList();
+}
+
+function closeProjectModal() {
+  document.getElementById('project-modal').style.display = 'none';
+}
+
+function renderProjectList() {
+  var html = '';
+  if (projects.length === 0) {
+    html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + t('noProject') + '</div>';
+  } else {
+    html = '<div class="project-items">';
+    projects.forEach(function(proj) {
+      var taskCount = tasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
+      html += '<div class="project-item" style="border-left: 4px solid ' + (proj.Color || '#6366f1') + ';">';
+      html += '<div class="project-item-info">';
+      html += '<strong>' + sanitize(proj.Name) + '</strong>';
+      html += '<span class="project-item-meta">' + taskCount + ' ' + (currentLang === 'fr' ? 'tâches' : 'tasks') + '</span>';
+      html += '</div>';
+      html += '<div class="project-item-actions">';
+      html += '<button class="btn-icon" onclick="editProject(' + proj.id + ')" title="' + t('editProject') + '">✏️</button>';
+      html += '<button class="btn-icon" onclick="deleteProject(' + proj.id + ')" title="' + t('deleteProject') + '">🗑️</button>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  document.getElementById('project-list').innerHTML = html;
+}
+
+function editProject(projectId) {
+  var proj = projects.find(function(p) { return p.id === projectId; });
+  if (!proj) return;
+  
+  document.getElementById('edit-project-id').value = proj.id;
+  document.getElementById('project-name').value = proj.Name || '';
+  document.getElementById('project-description').value = proj.Description || '';
+  document.getElementById('project-color').value = proj.Color || '#6366f1';
+  document.getElementById('project-status').value = proj.Status || 'active';
+  document.getElementById('project-form-title').textContent = t('editProject');
+}
+
+async function saveProject() {
+  var projectId = document.getElementById('edit-project-id').value;
+  var name = document.getElementById('project-name').value.trim();
+  var description = document.getElementById('project-description').value.trim();
+  var color = document.getElementById('project-color').value;
+  var status = document.getElementById('project-status').value;
+
+  if (!name) {
+    showToast(t('projectName') + ' ' + t('required'), 'error');
+    return;
+  }
+
+  try {
+    if (projectId) {
+      await grist.docApi.applyUserActions([
+        ['UpdateRecord', PROJECTS_TABLE, parseInt(projectId), {
+          Name: name,
+          Description: description,
+          Color: color,
+          Status: status
+        }]
+      ]);
+      showToast(t('editProject') + ' ✓', 'success');
+    } else {
+      await grist.docApi.applyUserActions([
+        ['AddRecord', PROJECTS_TABLE, null, {
+          Name: name,
+          Description: description,
+          Color: color,
+          Status: status
+        }]
+      ]);
+      showToast(t('addProject') + ' ✓', 'success');
+    }
+    await loadAllData();
+    renderProjectList();
+    document.getElementById('edit-project-id').value = '';
+    document.getElementById('project-name').value = '';
+    document.getElementById('project-description').value = '';
+    document.getElementById('project-color').value = '#6366f1';
+    document.getElementById('project-status').value = 'active';
+    document.getElementById('project-form-title').textContent = t('addProject');
+  } catch (e) {
+    console.error('Error saving project:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteProject(projectId) {
+  if (!confirm(t('confirmDelete'))) return;
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['RemoveRecord', PROJECTS_TABLE, projectId]
+    ]);
+    showToast(t('deleteProject') + ' ✓', 'success');
+    await loadAllData();
+    renderProjectList();
+  } catch (e) {
+    console.error('Error deleting project:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 // =============================================================================
