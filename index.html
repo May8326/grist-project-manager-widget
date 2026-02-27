@@ -168,6 +168,47 @@
     body.dark-mode .project-item {
       background: #334155;
     }
+    /* Settings items */
+    .settings-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .settings-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .settings-item-meta {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .settings-item-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .settings-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .settings-chip {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    body.dark-mode .settings-item {
+      background: #334155;
+    }
 
     /* ========== STAT CARDS ========== */
     .stats-row {
@@ -2296,6 +2337,7 @@
           <button class="tab-btn" data-tab="templates" onclick="switchTab('templates')">🎨 <span data-i18n="tabTemplates">Templates</span></button>
           <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">📈 <span data-i18n="tabStats">Stats</span></button>
           <button class="tab-btn" data-tab="team" onclick="switchTab('team')">👥 <span data-i18n="tabTeam">Équipe</span></button>
+          <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">⚙️ <span data-i18n="tabSettings">Paramètres</span></button>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div id="project-selector" class="project-selector"></div>
@@ -2514,17 +2556,51 @@
         </div>
 
       </div>
+    </div>
 
-      <!-- CATEGORIES SECTION -->
+    <!-- TAB: SETTINGS -->
+    <div class="tab-content" id="tab-settings">
+      <div class="section-title">
+        <h2 data-i18n="tabSettings">Paramètres</h2>
+        <p data-i18n="settingsSubtitle">Configurez vos projets, catégories et autres options</p>
+      </div>
+
+      <div class="team-grid">
+        <!-- PROJECTS SECTION -->
+        <div class="team-section">
+          <div class="team-section-header">
+            <div class="section-title">
+              <h2 data-i18n="manageProjects">Projets</h2>
+              <p data-i18n="projectsSubtitle">Gérez vos projets</p>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openProjectModal()">+ <span data-i18n="addProject">Ajouter</span></button>
+          </div>
+          <div id="projects-list"></div>
+        </div>
+
+        <!-- CATEGORIES SECTION -->
+        <div class="team-section">
+          <div class="team-section-header">
+            <div class="section-title">
+              <h2 data-i18n="categories">Catégories</h2>
+              <p data-i18n="categoriesSubtitle">Gérez les catégories de tâches</p>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openCategoriesModal()">+ <span data-i18n="addCategory">Ajouter</span></button>
+          </div>
+          <div id="categories-list"></div>
+        </div>
+      </div>
+
+      <!-- TAGS SECTION -->
       <div style="margin-top:20px;">
         <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
           <div>
-            <h2 data-i18n="categories">Catégories</h2>
-            <p data-i18n="manageCategories">Gérer les catégories</p>
+            <h2 data-i18n="tags">Tags</h2>
+            <p data-i18n="tagsSubtitle">Gérez les tags pour vos tâches</p>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openCategoriesModal()">⚙️ <span data-i18n="manageCategories">Gérer</span></button>
+          <button class="btn btn-primary btn-sm" onclick="openTagsModal()">+ <span data-i18n="addTag">Ajouter</span></button>
         </div>
-        <div id="categories-list"></div>
+        <div id="tags-list"></div>
       </div>
     </div>
 

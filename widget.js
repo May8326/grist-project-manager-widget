@@ -117,6 +117,12 @@ var i18n = {
     editProject: 'Modifier le projet',
     deleteProject: 'Supprimer le projet',
     noProject: 'Sans projet',
+    tabSettings: 'Paramètres',
+    settingsSubtitle: 'Configurez vos projets, catégories et autres options',
+    projectsSubtitle: 'Gérez vos projets',
+    categoriesSubtitle: 'Gérez les catégories de tâches',
+    tagsSubtitle: 'Gérez les tags pour vos tâches',
+    addCategory: 'Ajouter',
     useTemplate: 'Utiliser',
     totalTemplates: 'Total modèles',
     totalUsages: 'Utilisations totales',
@@ -331,6 +337,12 @@ var i18n = {
     editProject: 'Edit project',
     deleteProject: 'Delete project',
     noProject: 'No project',
+    tabSettings: 'Settings',
+    settingsSubtitle: 'Configure your projects, categories and other options',
+    projectsSubtitle: 'Manage your projects',
+    categoriesSubtitle: 'Manage task categories',
+    tagsSubtitle: 'Manage tags for your tasks',
+    addCategory: 'Add',
     overdue: 'Overdue',
     noDate: 'No date',
     notDefined: 'Not defined',
@@ -720,6 +732,7 @@ function switchTab(tabId) {
   if (tabId === 'templates') renderTemplatesView();
   if (tabId === 'stats') renderStatsView();
   if (tabId === 'team') renderTeamView();
+  if (tabId === 'settings') renderSettingsView();
 }
 
 function restoreActiveTab() {
@@ -4250,6 +4263,86 @@ async function deleteProject(projectId) {
     console.error('Error deleting project:', e);
     showToast('Error: ' + e.message, 'error');
   }
+}
+
+// =============================================================================
+// SETTINGS VIEW
+// =============================================================================
+
+function renderSettingsView() {
+  renderSettingsProjectsList();
+  renderSettingsCategoriesList();
+  renderSettingsTagsList();
+}
+
+function renderSettingsProjectsList() {
+  var container = document.getElementById('projects-list');
+  if (!container) return;
+  
+  var html = '';
+  if (projects.length === 0) {
+    html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + t('noProject') + '</div>';
+  } else {
+    html = '<div class="settings-items">';
+    projects.forEach(function(proj) {
+      var taskCount = tasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
+      html += '<div class="settings-item" style="border-left: 4px solid ' + (proj.Color || '#6366f1') + ';">';
+      html += '<div class="settings-item-info">';
+      html += '<strong>' + sanitize(proj.Name) + '</strong>';
+      html += '<span class="settings-item-meta">' + taskCount + ' ' + (currentLang === 'fr' ? 'tâches' : 'tasks') + '</span>';
+      html += '</div>';
+      html += '<div class="settings-item-actions">';
+      html += '<button class="btn-icon" onclick="openProjectModalForEdit(' + proj.id + ')" title="' + t('editProject') + '">✏️</button>';
+      if (isOwner) html += '<button class="btn-icon" onclick="deleteProject(' + proj.id + ')" title="' + t('deleteProject') + '">🗑️</button>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function openProjectModalForEdit(projectId) {
+  openProjectModal();
+  editProject(projectId);
+}
+
+function renderSettingsCategoriesList() {
+  var container = document.getElementById('categories-list');
+  if (!container) return;
+  
+  var html = '';
+  if (categories.length === 0) {
+    html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + (currentLang === 'fr' ? 'Aucune catégorie' : 'No categories') + '</div>';
+  } else {
+    html = '<div class="settings-chips">';
+    categories.forEach(function(cat) {
+      html += '<span class="settings-chip" style="background:' + (cat.Color || '#6366f1') + ';color:white;">' + sanitize(cat.Name) + '</span>';
+    });
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function renderSettingsTagsList() {
+  var container = document.getElementById('tags-list');
+  if (!container) return;
+  
+  var html = '';
+  if (tags.length === 0) {
+    html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + (currentLang === 'fr' ? 'Aucun tag' : 'No tags') + '</div>';
+  } else {
+    html = '<div class="settings-chips">';
+    tags.forEach(function(tag) {
+      html += '<span class="settings-chip" style="background:' + (tag.Color || '#6366f1') + ';color:white;">' + sanitize(tag.Name) + '</span>';
+    });
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function openTagsModal() {
+  showToast(currentLang === 'fr' ? 'Fonctionnalité à venir' : 'Feature coming soon', 'info');
 }
 
 // =============================================================================
