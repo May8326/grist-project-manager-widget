@@ -123,6 +123,8 @@ var i18n = {
     categoriesSubtitle: 'Gérez les catégories de tâches',
     tagsSubtitle: 'Gérez les tags pour vos tâches',
     addCategory: 'Ajouter',
+    tagName: 'Nom du tag',
+    tagColor: 'Couleur',
     useTemplate: 'Utiliser',
     totalTemplates: 'Total modèles',
     totalUsages: 'Utilisations totales',
@@ -343,6 +345,8 @@ var i18n = {
     categoriesSubtitle: 'Manage task categories',
     tagsSubtitle: 'Manage tags for your tasks',
     addCategory: 'Add',
+    tagName: 'Tag name',
+    tagColor: 'Color',
     overdue: 'Overdue',
     noDate: 'No date',
     notDefined: 'Not defined',
@@ -4342,7 +4346,106 @@ function renderSettingsTagsList() {
 }
 
 function openTagsModal() {
-  showToast(currentLang === 'fr' ? 'Fonctionnalité à venir' : 'Feature coming soon', 'info');
+  document.getElementById('tags-modal').style.display = 'flex';
+  document.getElementById('edit-tag-id').value = '';
+  document.getElementById('tag-name').value = '';
+  document.getElementById('tag-color').value = '#6366f1';
+  document.getElementById('tag-form-title').textContent = t('addTag');
+  renderTagsModalList();
+}
+
+function closeTagsModal() {
+  document.getElementById('tags-modal').style.display = 'none';
+}
+
+function renderTagsModalList() {
+  var html = '';
+  if (tags.length === 0) {
+    html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + (currentLang === 'fr' ? 'Aucun tag' : 'No tags') + '</div>';
+  } else {
+    html = '<div class="project-items">';
+    tags.forEach(function(tag) {
+      html += '<div class="project-item" style="border-left: 4px solid ' + (tag.Color || '#6366f1') + ';">';
+      html += '<div class="project-item-info">';
+      html += '<strong>' + sanitize(tag.Name) + '</strong>';
+      html += '</div>';
+      html += '<div class="project-item-actions">';
+      html += '<button class="btn-icon" onclick="editTag(' + tag.id + ')" title="' + t('edit') + '">✏️</button>';
+      html += '<button class="btn-icon" onclick="deleteTag(' + tag.id + ')" title="' + t('delete') + '">🗑️</button>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  document.getElementById('tags-modal-list').innerHTML = html;
+}
+
+function editTag(tagId) {
+  var tag = tags.find(function(t) { return t.id === tagId; });
+  if (!tag) return;
+  
+  document.getElementById('edit-tag-id').value = tag.id;
+  document.getElementById('tag-name').value = tag.Name || '';
+  document.getElementById('tag-color').value = tag.Color || '#6366f1';
+  document.getElementById('tag-form-title').textContent = currentLang === 'fr' ? 'Modifier le tag' : 'Edit tag';
+}
+
+async function saveTag() {
+  var tagId = document.getElementById('edit-tag-id').value;
+  var name = document.getElementById('tag-name').value.trim();
+  var color = document.getElementById('tag-color').value;
+
+  if (!name) {
+    showToast((currentLang === 'fr' ? 'Nom du tag requis' : 'Tag name required'), 'error');
+    return;
+  }
+
+  try {
+    if (tagId) {
+      await grist.docApi.applyUserActions([
+        ['UpdateRecord', TAGS_TABLE, parseInt(tagId), {
+          Name: name,
+          Color: color
+        }]
+      ]);
+      showToast((currentLang === 'fr' ? 'Tag modifié' : 'Tag updated') + ' ✓', 'success');
+    } else {
+      await grist.docApi.applyUserActions([
+        ['AddRecord', TAGS_TABLE, null, {
+          Name: name,
+          Color: color
+        }]
+      ]);
+      showToast((currentLang === 'fr' ? 'Tag ajouté' : 'Tag added') + ' ✓', 'success');
+    }
+    await loadAllData();
+    renderTagsModalList();
+    renderSettingsTagsList();
+    document.getElementById('edit-tag-id').value = '';
+    document.getElementById('tag-name').value = '';
+    document.getElementById('tag-color').value = '#6366f1';
+    document.getElementById('tag-form-title').textContent = t('addTag');
+  } catch (e) {
+    console.error('Error saving tag:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteTag(tagId) {
+  if (!confirm(t('confirmDelete'))) return;
+  
+  try {
+    await grist.docApi.applyUserActions([
+      ['RemoveRecord', TAGS_TABLE, tagId]
+    ]);
+    showToast((currentLang === 'fr' ? 'Tag supprimé' : 'Tag deleted') + ' ✓', 'success');
+    await loadAllData();
+    renderTagsModalList();
+    renderSettingsTagsList();
+  } catch (e) {
+    console.error('Error deleting tag:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 // =============================================================================
