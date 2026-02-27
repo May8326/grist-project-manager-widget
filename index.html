@@ -2564,12 +2564,17 @@
     body.dark-mode .calendar-header button:hover {
       background: #475569;
     }
-    body.dark-mode .calendar-mode-btns button {
+    body.dark-mode .calendar-mode-btns {
       background: #334155;
+    }
+    body.dark-mode .calendar-mode-btns button,
+    body.dark-mode .calendar-mode-btn {
+      background: transparent;
       color: #e2e8f0;
       border-color: #475569;
     }
-    body.dark-mode .calendar-mode-btns button.active {
+    body.dark-mode .calendar-mode-btns button.active,
+    body.dark-mode .calendar-mode-btn.active {
       background: #6366f1;
       color: white;
     }
@@ -2666,6 +2671,9 @@
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <input type="text" id="global-search" class="global-search" placeholder="Rechercher..." oninput="globalSearch(this.value)" />
+          <button class="btn-icon-header" id="notifications-btn" onclick="showNotifications()" title="Alertes">🔔<span class="notif-badge" id="notif-badge"></span></button>
+          <button class="btn-icon-header" onclick="toggleDarkMode()" title="Mode sombre">🌙</button>
+          <button class="btn-icon-header" onclick="exportTasks('csv')" title="Export CSV">📥</button>
           <div class="lang-btns">
             <button class="lang-btn active" onclick="setLang('fr')">FR</button>
             <button class="lang-btn" onclick="setLang('en')">EN</button>
@@ -2685,9 +2693,6 @@
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div id="project-selector" class="project-selector"></div>
-          <button class="btn-icon-header" id="notifications-btn" onclick="showNotifications()" title="Alertes">🔔<span class="notif-badge" id="notif-badge"></span></button>
-          <button class="btn-icon-header" onclick="toggleDarkMode()" title="Mode sombre">🌙</button>
-          <button class="btn-icon-header" onclick="exportTasks('csv')" title="Export CSV">📥</button>
           <button class="btn-new-task" onclick="openNewTaskModal()">+ <span data-i18n="newTask">Nouvelle tâche</span></button>
         </div>
       </div>
