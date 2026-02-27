@@ -2274,9 +2274,18 @@
 
     <!-- HEADER -->
     <div class="app-header">
-      <div>
-        <h1>📋 <span data-i18n="appTitle">Gestion de Projet</span></h1>
-        <p data-i18n="appSubtitle">Organisez et suivez vos tâches avec le tableau Kanban ou la vue tableau</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1>📋 <span data-i18n="appTitle">Gestion de Projet</span></h1>
+          <p data-i18n="appSubtitle">Organisez et suivez vos tâches avec le tableau Kanban ou la vue tableau</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="text" id="global-search" class="global-search" placeholder="Rechercher..." oninput="globalSearch(this.value)" />
+          <div class="lang-btns">
+            <button class="lang-btn active" onclick="setLang('fr')">FR</button>
+            <button class="lang-btn" onclick="setLang('en')">EN</button>
+          </div>
+        </div>
       </div>
       <div class="header-row" style="margin-top:12px;">
         <div class="tabs-bar">
@@ -2290,15 +2299,10 @@
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div id="project-selector" class="project-selector"></div>
-          <input type="text" id="global-search" class="global-search" placeholder="Rechercher..." oninput="globalSearch(this.value)" />
           <button class="btn-icon-header" id="notifications-btn" onclick="showNotifications()" title="Alertes">🔔<span class="notif-badge" id="notif-badge"></span></button>
           <button class="btn-icon-header" onclick="toggleDarkMode()" title="Mode sombre">🌙</button>
           <button class="btn-icon-header" onclick="exportTasks('csv')" title="Export CSV">📥</button>
           <button class="btn-new-task" onclick="openNewTaskModal()">+ <span data-i18n="newTask">Nouvelle tâche</span></button>
-          <div class="lang-btns">
-            <button class="lang-btn active" onclick="setLang('fr')">FR</button>
-            <button class="lang-btn" onclick="setLang('en')">EN</button>
-          </div>
         </div>
       </div>
     </div>
