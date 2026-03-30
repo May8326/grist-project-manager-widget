@@ -3837,10 +3837,15 @@ async function createTask() {
     Start_Date: toEpoch(document.getElementById('task-start').value),
     Due_Date: toEpoch(document.getElementById('task-due').value),
     Category: document.getElementById('task-category').value.trim(),
-    Tag: document.getElementById('task-tag').value.trim(),
     Project_Id: projectId,
     Created_At: Math.floor(Date.now() / 1000)
   };
+  
+  // Add Tag only if the element exists (column may not exist in older tables)
+  var tagEl = document.getElementById('task-tag');
+  if (tagEl) {
+    record.Tag = tagEl.value.trim();
+  }
 
   try {
     await grist.docApi.applyUserActions([
@@ -3878,10 +3883,15 @@ async function updateTask(taskId) {
     Start_Date: toEpoch(document.getElementById('task-start').value),
     Due_Date: toEpoch(document.getElementById('task-due').value),
     Category: document.getElementById('task-category').value.trim(),
-    Tag: document.getElementById('task-tag').value.trim(),
     Project_Id: projectId,
     Recurrence: newRecurrence
   };
+  
+  // Add Tag only if the element exists (column may not exist in older tables)
+  var tagEl = document.getElementById('task-tag');
+  if (tagEl) {
+    record.Tag = tagEl.value.trim();
+  }
 
   try {
     await grist.docApi.applyUserActions([
