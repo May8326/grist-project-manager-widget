@@ -789,6 +789,7 @@ async function ensureTables() {
           { id: 'Start_Date', type: 'Date' },
           { id: 'Due_Date', type: 'Date' },
           { id: 'Category', type: 'Text' },
+          { id: 'Tag', type: 'Text' },
           { id: 'Recurrence', type: 'Choice', widgetOptions: JSON.stringify({ choices: ['none', 'daily', 'weekly', 'monthly'] }) },
           { id: 'Estimated_Hours', type: 'Numeric' },
           { id: 'Created_At', type: 'Date' }
