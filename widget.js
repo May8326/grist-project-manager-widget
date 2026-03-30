@@ -2450,6 +2450,7 @@ async function addCategory() {
     ]);
     showToast(t('categoryCreated'), 'success');
     await loadAllData();
+    refreshAllViews();
     openCategoriesModal();
   } catch (e) {
     console.error('Error adding category:', e);
@@ -4266,7 +4267,9 @@ async function saveProject() {
       ]);
       showToast(t('addProject') + ' ✓', 'success');
     }
+    closeModalForce();
     await loadAllData();
+    refreshAllViews();
     renderProjectList();
     document.getElementById('edit-project-id').value = '';
     document.getElementById('project-name').value = '';
@@ -4446,7 +4449,9 @@ async function saveTag() {
       ]);
       showToast((currentLang === 'fr' ? 'Tag ajouté' : 'Tag added') + ' ✓', 'success');
     }
+    closeModalForce();
     await loadAllData();
+    refreshAllViews();
     renderTagsModalList();
     renderSettingsTagsList();
     document.getElementById('edit-tag-id').value = '';
