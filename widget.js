@@ -2449,9 +2449,10 @@ async function addCategory() {
       }]
     ]);
     showToast(t('categoryCreated'), 'success');
+    closeModalForce();
     await loadAllData();
     refreshAllViews();
-    openCategoriesModal();
+    renderSettingsCategoriesList();
   } catch (e) {
     console.error('Error adding category:', e);
     showToast('Error: ' + e.message, 'error');
@@ -2466,8 +2467,10 @@ async function deleteCategory(categoryId) {
       ['RemoveRecord', CATEGORIES_TABLE, categoryId]
     ]);
     showToast(t('categoryDeleted'), 'info');
+    closeModalForce();
     await loadAllData();
-    openCategoriesModal();
+    refreshAllViews();
+    renderSettingsCategoriesList();
   } catch (e) {
     console.error('Error deleting category:', e);
   }
@@ -4449,10 +4452,9 @@ async function saveTag() {
       ]);
       showToast((currentLang === 'fr' ? 'Tag ajouté' : 'Tag added') + ' ✓', 'success');
     }
-    closeModalForce();
+    closeTagsModal();
     await loadAllData();
     refreshAllViews();
-    renderTagsModalList();
     renderSettingsTagsList();
     document.getElementById('edit-tag-id').value = '';
     document.getElementById('tag-name').value = '';
@@ -4474,6 +4476,7 @@ async function deleteTag(tagId) {
     ]);
     showToast((currentLang === 'fr' ? 'Tag supprimé' : 'Tag deleted') + ' ✓', 'success');
     await loadAllData();
+    refreshAllViews();
     renderTagsModalList();
     renderSettingsTagsList();
   } catch (e) {
