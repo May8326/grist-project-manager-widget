@@ -2812,6 +2812,17 @@ function openNewTaskModal(defaultStatus) {
   html += '<div class="detail-field-value"><select id="task-category">' + newCategoryOptions + '</select></div>';
   html += '</div>';
 
+  // Tag
+  var newTagOptions = '<option value="">--</option>';
+  for (var nti = 0; nti < tags.length; nti++) {
+    newTagOptions += '<option value="' + sanitize(tags[nti].Name) + '">' + sanitize(tags[nti].Name) + '</option>';
+  }
+  html += '<div class="detail-field">';
+  html += '<span class="detail-field-icon">🏷️</span>';
+  html += '<span class="detail-field-label">' + t('tag') + '</span>';
+  html += '<div class="detail-field-value"><select id="task-tag">' + newTagOptions + '</select></div>';
+  html += '</div>';
+
   html += '</div>'; // end left
   html += '</div>'; // end content
 
@@ -2960,6 +2971,18 @@ function openEditTaskModal(taskId, preserveAssignees) {
   html += '<span class="detail-field-icon">📁</span>';
   html += '<span class="detail-field-label">' + t('fieldCategory') + '</span>';
   html += '<div class="detail-field-value"><select id="task-category">' + categoryOptions + '</select></div>';
+  html += '</div>';
+
+  // Tag
+  var tagOptions = '<option value="">--</option>';
+  for (var ti = 0; ti < tags.length; ti++) {
+    var tagSel = tags[ti].Name === task.Tag ? ' selected' : '';
+    tagOptions += '<option value="' + sanitize(tags[ti].Name) + '"' + tagSel + '>' + sanitize(tags[ti].Name) + '</option>';
+  }
+  html += '<div class="detail-field">';
+  html += '<span class="detail-field-icon">🏷️</span>';
+  html += '<span class="detail-field-label">' + t('tag') + '</span>';
+  html += '<div class="detail-field-value"><select id="task-tag">' + tagOptions + '</select></div>';
   html += '</div>';
 
   // === SUBTASKS SECTION ===
@@ -3814,6 +3837,7 @@ async function createTask() {
     Start_Date: toEpoch(document.getElementById('task-start').value),
     Due_Date: toEpoch(document.getElementById('task-due').value),
     Category: document.getElementById('task-category').value.trim(),
+    Tag: document.getElementById('task-tag').value.trim(),
     Project_Id: projectId,
     Created_At: Math.floor(Date.now() / 1000)
   };
@@ -3854,6 +3878,7 @@ async function updateTask(taskId) {
     Start_Date: toEpoch(document.getElementById('task-start').value),
     Due_Date: toEpoch(document.getElementById('task-due').value),
     Category: document.getElementById('task-category').value.trim(),
+    Tag: document.getElementById('task-tag').value.trim(),
     Project_Id: projectId,
     Recurrence: newRecurrence
   };

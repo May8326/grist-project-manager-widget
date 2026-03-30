@@ -447,6 +447,19 @@
     .task-card.priority-low .task-card-title {
       background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
     }
+    /* Couleurs selon le statut (colonne) */
+    .col-todo .task-card {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border-left: 4px solid #f59e0b;
+    }
+    .col-progress .task-card {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-left: 4px solid #3b82f6;
+    }
+    .col-done .task-card {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-left: 4px solid #22c55e;
+    }
     .task-card-actions { 
       display: flex; 
       gap: 4px;
@@ -3044,7 +3057,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=2"></script>
+  <script src="widget.js?v=4"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>
