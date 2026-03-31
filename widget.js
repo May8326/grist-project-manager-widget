@@ -1233,13 +1233,18 @@ async function loadAllData() {
     var userData = await grist.docApi.fetchTable(USERS_TABLE);
     users = [];
     if (userData && userData.id) {
+      var nameCol = getColumnName('users', 'name');
+      var emailCol = getColumnName('users', 'email');
+      var roleCol = getColumnName('users', 'role');
+      var groupCol = getColumnName('users', 'group');
+      
       for (var i = 0; i < userData.id.length; i++) {
         users.push({
           id: userData.id[i],
-          Name: userData.Name ? userData.Name[i] : '',
-          Email: userData.Email ? userData.Email[i] : '',
-          Role: userData.Role ? userData.Role[i] : 'member',
-          Group_Name: userData.Group_Name ? userData.Group_Name[i] : ''
+          Name: userData[nameCol] ? userData[nameCol][i] : '',
+          Email: userData[emailCol] ? userData[emailCol][i] : '',
+          Role: userData[roleCol] ? userData[roleCol][i] : 'member',
+          Group_Name: userData[groupCol] ? userData[groupCol][i] : ''
         });
       }
     }
@@ -1400,12 +1405,16 @@ async function loadAllData() {
     var catData = await grist.docApi.fetchTable(CATEGORIES_TABLE);
     categories = [];
     if (catData && catData.id) {
+      var nameCol = getColumnName('categories', 'name');
+      var colorCol = getColumnName('categories', 'color');
+      var orderCol = getColumnName('categories', 'order');
+      
       for (var i = 0; i < catData.id.length; i++) {
         categories.push({
           id: catData.id[i],
-          Name: catData.Name ? catData.Name[i] : '',
-          Color: catData.Color ? catData.Color[i] : '#6366f1',
-          Order: catData.Order ? catData.Order[i] : 0
+          Name: catData[nameCol] ? catData[nameCol][i] : '',
+          Color: catData[colorCol] ? catData[colorCol][i] : '#6366f1',
+          Order: catData[orderCol] ? catData[orderCol][i] : 0
         });
       }
     }
@@ -1418,11 +1427,14 @@ async function loadAllData() {
     var tagData = await grist.docApi.fetchTable(TAGS_TABLE);
     tags = [];
     if (tagData && tagData.id) {
+      var nameCol = getColumnName('tags', 'name');
+      var colorCol = getColumnName('tags', 'color');
+      
       for (var i = 0; i < tagData.id.length; i++) {
         tags.push({
           id: tagData.id[i],
-          Name: tagData.Name ? tagData.Name[i] : '',
-          Color: tagData.Color ? tagData.Color[i] : '#6366f1'
+          Name: tagData[nameCol] ? tagData[nameCol][i] : '',
+          Color: tagData[colorCol] ? tagData[colorCol][i] : '#6366f1'
         });
       }
     }
@@ -1434,13 +1446,18 @@ async function loadAllData() {
     var projData = await grist.docApi.fetchTable(PROJECTS_TABLE);
     projects = [];
     if (projData && projData.id) {
+      var nameCol = getColumnName('projects', 'name');
+      var descCol = getColumnName('projects', 'description');
+      var colorCol = getColumnName('projects', 'color');
+      var statusCol = getColumnName('projects', 'status');
+      
       for (var i = 0; i < projData.id.length; i++) {
         projects.push({
           id: projData.id[i],
-          Name: projData.Name ? projData.Name[i] : '',
-          Description: projData.Description ? projData.Description[i] : '',
-          Color: projData.Color ? projData.Color[i] : '#6366f1',
-          Status: projData.Status ? projData.Status[i] : 'active',
+          Name: projData[nameCol] ? projData[nameCol][i] : '',
+          Description: projData[descCol] ? projData[descCol][i] : '',
+          Color: projData[colorCol] ? projData[colorCol][i] : '#6366f1',
+          Status: projData[statusCol] ? projData[statusCol][i] : 'active',
           Start_Date: projData.Start_Date ? projData.Start_Date[i] : null,
           End_Date: projData.End_Date ? projData.End_Date[i] : null
         });
@@ -3969,21 +3986,23 @@ async function createNextOccurrence(task) {
   }
   
   try {
+    var record = {};
+    setField(record, 'tasks', 'title', task.Title);
+    setField(record, 'tasks', 'description', task.Description);
+    setField(record, 'tasks', 'status', 'todo');
+    setField(record, 'tasks', 'priority', task.Priority);
+    setField(record, 'tasks', 'assignee', task.Assignee);
+    setField(record, 'tasks', 'group', task.Group_Name);
+    setField(record, 'tasks', 'startDate', newStartDate);
+    setField(record, 'tasks', 'dueDate', newDueDate);
+    setField(record, 'tasks', 'category', task.Category);
+    setField(record, 'tasks', 'tag', task.Tag);
+    setField(record, 'tasks', 'recurrence', task.Recurrence);
+    setField(record, 'tasks', 'estimatedHours', task.Estimated_Hours);
+    setField(record, 'tasks', 'createdAt', now);
+    
     await grist.docApi.applyUserActions([
-      ['AddRecord', TASKS_TABLE, null, {
-        Title: task.Title,
-        Description: task.Description,
-        Status: 'todo',
-        Priority: task.Priority,
-        Assignee: task.Assignee,
-        Group_Name: task.Group_Name,
-        Start_Date: newStartDate,
-        Due_Date: newDueDate,
-        Category: task.Category,
-        Recurrence: task.Recurrence,
-        Estimated_Hours: task.Estimated_Hours,
-        Created_At: now
-      }]
+      ['AddRecord', TASKS_TABLE, null, record]
     ]);
     showToast(t('nextOccurrence'), 'success');
   } catch (e) {
