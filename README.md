@@ -38,6 +38,7 @@ Project management widget for Grist with Kanban board, table view, Gantt chart, 
 - **Statistics dashboard**: Total, to do, in progress, completed counts
 - **Search & filter**: By status, priority, and keywords
 - **Bilingual interface** (French / English, auto-detected)
+- **🆕 Column mapping system**: Map your own existing Grist tables and columns (see [GUIDE_MAPPING.md](GUIDE_MAPPING.md))
 
 ### 🔒 Security
 
@@ -105,6 +106,7 @@ Widget de gestion de projets pour Grist avec tableau Kanban, vue tableau, diagra
 - **Tableau de bord** : Statistiques total, à faire, en cours, terminées
 - **Recherche & filtres** : Par statut, priorité et mots-clés
 - **Interface bilingue** (Français / Anglais, détection automatique)
+- **🆕 Système de mapping de colonnes** : Mappez vos propres tables et colonnes Grist existantes (voir [GUIDE_MAPPING.md](GUIDE_MAPPING.md))
 
 ### 🔒 Sécurité
 
