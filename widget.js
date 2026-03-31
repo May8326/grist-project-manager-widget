@@ -2672,12 +2672,13 @@ async function addCategory() {
   var maxOrder = categories.length > 0 ? Math.max.apply(null, categories.map(function(c) { return c.Order || 0; })) : 0;
   
   try {
+    var record = {};
+    setField(record, 'categories', 'name', name);
+    setField(record, 'categories', 'color', color);
+    setField(record, 'categories', 'order', maxOrder + 1);
+    
     await grist.docApi.applyUserActions([
-      ['AddRecord', CATEGORIES_TABLE, null, {
-        Name: name,
-        Color: color,
-        Order: maxOrder + 1
-      }]
+      ['AddRecord', CATEGORIES_TABLE, null, record]
     ]);
     showToast(t('categoryCreated'), 'success');
     closeModalForce();
@@ -4060,24 +4061,23 @@ async function createTask() {
   var projectEl = document.getElementById('task-project');
   var projectId = projectEl && projectEl.value ? parseInt(projectEl.value) : null;
 
-  var record = {
-    Title: title,
-    Description: document.getElementById('task-desc').value.trim(),
-    Status: document.getElementById('task-status').value,
-    Priority: document.getElementById('task-priority').value,
-    Assignee: editAssignees.join(', '),
-    Group_Name: document.getElementById('task-group').value,
-    Start_Date: toEpoch(document.getElementById('task-start').value),
-    Due_Date: toEpoch(document.getElementById('task-due').value),
-    Category: document.getElementById('task-category').value.trim(),
-    Project_Id: projectId,
-    Created_At: Math.floor(Date.now() / 1000)
-  };
+  var record = {};
+  setField(record, 'tasks', 'title', title);
+  setField(record, 'tasks', 'description', document.getElementById('task-desc').value.trim());
+  setField(record, 'tasks', 'status', document.getElementById('task-status').value);
+  setField(record, 'tasks', 'priority', document.getElementById('task-priority').value);
+  setField(record, 'tasks', 'assignee', editAssignees.join(', '));
+  setField(record, 'tasks', 'group', document.getElementById('task-group').value);
+  setField(record, 'tasks', 'startDate', toEpoch(document.getElementById('task-start').value));
+  setField(record, 'tasks', 'dueDate', toEpoch(document.getElementById('task-due').value));
+  setField(record, 'tasks', 'category', document.getElementById('task-category').value.trim());
+  setField(record, 'tasks', 'projectId', projectId);
+  setField(record, 'tasks', 'createdAt', Math.floor(Date.now() / 1000));
   
-  // Add Tag only if the element exists (column may not exist in older tables)
+  // Add Tag only if the element exists
   var tagEl = document.getElementById('task-tag');
   if (tagEl) {
-    record.Tag = tagEl.value.trim();
+    setField(record, 'tasks', 'tag', tagEl.value.trim());
   }
 
   try {
@@ -4106,24 +4106,23 @@ async function updateTask(taskId) {
   var projectEl = document.getElementById('task-project');
   var projectId = projectEl && projectEl.value ? parseInt(projectEl.value) : null;
 
-  var record = {
-    Title: title,
-    Description: document.getElementById('task-desc').value.trim(),
-    Status: newStatus,
-    Priority: document.getElementById('task-priority').value,
-    Assignee: editAssignees.join(', '),
-    Group_Name: document.getElementById('task-group').value,
-    Start_Date: toEpoch(document.getElementById('task-start').value),
-    Due_Date: toEpoch(document.getElementById('task-due').value),
-    Category: document.getElementById('task-category').value.trim(),
-    Project_Id: projectId,
-    Recurrence: newRecurrence
-  };
+  var record = {};
+  setField(record, 'tasks', 'title', title);
+  setField(record, 'tasks', 'description', document.getElementById('task-desc').value.trim());
+  setField(record, 'tasks', 'status', newStatus);
+  setField(record, 'tasks', 'priority', document.getElementById('task-priority').value);
+  setField(record, 'tasks', 'assignee', editAssignees.join(', '));
+  setField(record, 'tasks', 'group', document.getElementById('task-group').value);
+  setField(record, 'tasks', 'startDate', toEpoch(document.getElementById('task-start').value));
+  setField(record, 'tasks', 'dueDate', toEpoch(document.getElementById('task-due').value));
+  setField(record, 'tasks', 'category', document.getElementById('task-category').value.trim());
+  setField(record, 'tasks', 'projectId', projectId);
+  setField(record, 'tasks', 'recurrence', newRecurrence);
   
-  // Add Tag only if the element exists (column may not exist in older tables)
+  // Add Tag only if the element exists
   var tagEl = document.getElementById('task-tag');
   if (tagEl) {
-    record.Tag = tagEl.value.trim();
+    setField(record, 'tasks', 'tag', tagEl.value.trim());
   }
 
   try {
@@ -4517,24 +4516,20 @@ async function saveProject() {
   }
 
   try {
+    var record = {};
+    setField(record, 'projects', 'name', name);
+    setField(record, 'projects', 'description', description);
+    setField(record, 'projects', 'color', color);
+    setField(record, 'projects', 'status', status);
+    
     if (projectId) {
       await grist.docApi.applyUserActions([
-        ['UpdateRecord', PROJECTS_TABLE, parseInt(projectId), {
-          Name: name,
-          Description: description,
-          Color: color,
-          Status: status
-        }]
+        ['UpdateRecord', PROJECTS_TABLE, parseInt(projectId), record]
       ]);
       showToast(t('editProject') + ' ✓', 'success');
     } else {
       await grist.docApi.applyUserActions([
-        ['AddRecord', PROJECTS_TABLE, null, {
-          Name: name,
-          Description: description,
-          Color: color,
-          Status: status
-        }]
+        ['AddRecord', PROJECTS_TABLE, null, record]
       ]);
       showToast(t('addProject') + ' ✓', 'success');
     }
@@ -4703,20 +4698,18 @@ async function saveTag() {
   }
 
   try {
+    var record = {};
+    setField(record, 'tags', 'name', name);
+    setField(record, 'tags', 'color', color);
+    
     if (tagId) {
       await grist.docApi.applyUserActions([
-        ['UpdateRecord', TAGS_TABLE, parseInt(tagId), {
-          Name: name,
-          Color: color
-        }]
+        ['UpdateRecord', TAGS_TABLE, parseInt(tagId), record]
       ]);
       showToast((currentLang === 'fr' ? 'Tag modifié' : 'Tag updated') + ' ✓', 'success');
     } else {
       await grist.docApi.applyUserActions([
-        ['AddRecord', TAGS_TABLE, null, {
-          Name: name,
-          Color: color
-        }]
+        ['AddRecord', TAGS_TABLE, null, record]
       ]);
       showToast((currentLang === 'fr' ? 'Tag ajouté' : 'Tag added') + ' ✓', 'success');
     }
