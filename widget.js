@@ -517,6 +517,48 @@ var CUSTOM_FIELD_VALUES_TABLE = 'PM_CustomFieldValues';
 var CATEGORIES_TABLE = 'PM_Categories';
 var TAGS_TABLE = 'PM_Tags';
 var PROJECTS_TABLE = 'PM_Projects';
+var CONFIG_TABLE = 'PM_Config';
+
+// Configuration mapping object
+var columnMapping = {
+  tasks: {
+    title: 'Title',
+    description: 'Description',
+    status: 'Status',
+    priority: 'Priority',
+    assignee: 'Assignee',
+    group: 'Group_Name',
+    startDate: 'Start_Date',
+    dueDate: 'Due_Date',
+    category: 'Category',
+    tag: 'Tag',
+    recurrence: 'Recurrence',
+    estimatedHours: 'Estimated_Hours',
+    createdAt: 'Created_At',
+    projectId: 'Project_Id'
+  },
+  users: {
+    name: 'Name',
+    email: 'Email',
+    role: 'Role',
+    group: 'Group_Name'
+  },
+  projects: {
+    name: 'Name',
+    description: 'Description',
+    color: 'Color',
+    status: 'Status'
+  },
+  categories: {
+    name: 'Name',
+    color: 'Color',
+    order: 'Order'
+  },
+  tags: {
+    name: 'Name',
+    color: 'Color'
+  }
+};
 
 var isOwner = false;
 var currentUserEmail = '';
@@ -542,6 +584,90 @@ function showToast(msg, type) {
 function sanitize(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// =============================================================================
+// COLUMN MAPPING UTILITIES
+// =============================================================================
+
+// Load column mapping from PM_Config table
+async function loadColumnMapping() {
+  try {
+    var configData = await grist.docApi.fetchTable(CONFIG_TABLE);
+    if (!configData || !configData.Config_Key) return;
+    
+    // Update columnMapping object from config table
+    for (var i = 0; i < configData.Config_Key.length; i++) {
+      var key = configData.Config_Key[i];
+      var tableName = configData.Table_Name[i];
+      var columnName = configData.Column_Name[i];
+      
+      // Parse key to determine which mapping to update
+      if (key.startsWith('task_')) {
+        var field = key.replace('task_', '').replace(/_/g, '');
+        // Convert snake_case to camelCase
+        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        if (columnMapping.tasks[field] !== undefined) {
+          columnMapping.tasks[field] = columnName;
+        }
+      } else if (key.startsWith('user_')) {
+        var field = key.replace('user_', '').replace(/_/g, '');
+        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        if (columnMapping.users[field] !== undefined) {
+          columnMapping.users[field] = columnName;
+        }
+      } else if (key.startsWith('project_')) {
+        var field = key.replace('project_', '').replace(/_/g, '');
+        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        if (columnMapping.projects[field] !== undefined) {
+          columnMapping.projects[field] = columnName;
+        }
+      } else if (key.startsWith('category_')) {
+        var field = key.replace('category_', '').replace(/_/g, '');
+        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        if (columnMapping.categories[field] !== undefined) {
+          columnMapping.categories[field] = columnName;
+        }
+      } else if (key.startsWith('tag_')) {
+        var field = key.replace('tag_', '').replace(/_/g, '');
+        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        if (columnMapping.tags[field] !== undefined) {
+          columnMapping.tags[field] = columnName;
+        }
+      }
+      
+      // Also update table names if they differ
+      if (key === 'task_title') TASKS_TABLE = tableName;
+      else if (key === 'user_name') USERS_TABLE = tableName;
+      else if (key === 'project_name') PROJECTS_TABLE = tableName;
+      else if (key === 'category_name') CATEGORIES_TABLE = tableName;
+      else if (key === 'tag_name') TAGS_TABLE = tableName;
+    }
+  } catch (e) {
+    console.log('Column mapping not loaded, using defaults:', e);
+  }
+}
+
+// Get field value from a record using mapping
+function getField(record, entity, field) {
+  if (!record || !columnMapping[entity]) return null;
+  var columnName = columnMapping[entity][field];
+  return columnName ? record[columnName] : null;
+}
+
+// Set field value in a record object using mapping
+function setField(record, entity, field, value) {
+  if (!record || !columnMapping[entity]) return;
+  var columnName = columnMapping[entity][field];
+  if (columnName) {
+    record[columnName] = value;
+  }
+}
+
+// Get column name for a field using mapping
+function getColumnName(entity, field) {
+  if (!columnMapping[entity]) return field;
+  return columnMapping[entity][field] || field;
 }
 
 function formatDate(d) {
@@ -931,6 +1057,72 @@ async function ensureTables() {
       ]);
     }
 
+    // Create PM_Config table for column mapping configuration
+    if (existingTables.indexOf(CONFIG_TABLE) === -1) {
+      await grist.docApi.applyUserActions([
+        ['AddTable', CONFIG_TABLE, [
+          { id: 'Config_Key', type: 'Text' },
+          { id: 'Table_Name', type: 'Text' },
+          { id: 'Column_Name', type: 'Text' },
+          { id: 'Display_Label', type: 'Text' },
+          { id: 'Required', type: 'Bool' },
+          { id: 'Default_Value', type: 'Text' }
+        ]]
+      ]);
+      
+      // Initialize with default mapping
+      var defaultConfig = [
+        // Tasks mapping
+        ['task_title', TASKS_TABLE, 'Title', 'Titre', true, 'Title'],
+        ['task_description', TASKS_TABLE, 'Description', 'Description', false, 'Description'],
+        ['task_status', TASKS_TABLE, 'Status', 'Statut', true, 'Status'],
+        ['task_priority', TASKS_TABLE, 'Priority', 'Priorité', true, 'Priority'],
+        ['task_assignee', TASKS_TABLE, 'Assignee', 'Assigné à', false, 'Assignee'],
+        ['task_group', TASKS_TABLE, 'Group_Name', 'Groupe', false, 'Group_Name'],
+        ['task_start_date', TASKS_TABLE, 'Start_Date', 'Date début', false, 'Start_Date'],
+        ['task_due_date', TASKS_TABLE, 'Due_Date', 'Échéance', false, 'Due_Date'],
+        ['task_category', TASKS_TABLE, 'Category', 'Catégorie', false, 'Category'],
+        ['task_tag', TASKS_TABLE, 'Tag', 'Tag', false, 'Tag'],
+        ['task_recurrence', TASKS_TABLE, 'Recurrence', 'Récurrence', false, 'Recurrence'],
+        ['task_estimated_hours', TASKS_TABLE, 'Estimated_Hours', 'Heures estimées', false, 'Estimated_Hours'],
+        ['task_created_at', TASKS_TABLE, 'Created_At', 'Créé le', false, 'Created_At'],
+        ['task_project_id', TASKS_TABLE, 'Project_Id', 'Projet', false, 'Project_Id'],
+        // Users mapping
+        ['user_name', USERS_TABLE, 'Name', 'Nom', true, 'Name'],
+        ['user_email', USERS_TABLE, 'Email', 'Email', true, 'Email'],
+        ['user_role', USERS_TABLE, 'Role', 'Rôle', false, 'Role'],
+        ['user_group', USERS_TABLE, 'Group_Name', 'Groupe', false, 'Group_Name'],
+        // Projects mapping
+        ['project_name', PROJECTS_TABLE, 'Name', 'Nom', true, 'Name'],
+        ['project_description', PROJECTS_TABLE, 'Description', 'Description', false, 'Description'],
+        ['project_color', PROJECTS_TABLE, 'Color', 'Couleur', false, 'Color'],
+        ['project_status', PROJECTS_TABLE, 'Status', 'Statut', false, 'Status'],
+        // Categories mapping
+        ['category_name', CATEGORIES_TABLE, 'Name', 'Nom', true, 'Name'],
+        ['category_color', CATEGORIES_TABLE, 'Color', 'Couleur', false, 'Color'],
+        ['category_order', CATEGORIES_TABLE, 'Order', 'Ordre', false, 'Order'],
+        // Tags mapping
+        ['tag_name', TAGS_TABLE, 'Name', 'Nom', true, 'Name'],
+        ['tag_color', TAGS_TABLE, 'Color', 'Couleur', false, 'Color']
+      ];
+      
+      var configRecords = [];
+      for (var i = 0; i < defaultConfig.length; i++) {
+        configRecords.push({
+          Config_Key: defaultConfig[i][0],
+          Table_Name: defaultConfig[i][1],
+          Column_Name: defaultConfig[i][2],
+          Display_Label: defaultConfig[i][3],
+          Required: defaultConfig[i][4],
+          Default_Value: defaultConfig[i][5]
+        });
+      }
+      
+      await grist.docApi.applyUserActions([
+        ['BulkAddRecord', CONFIG_TABLE, configRecords.map(function() { return null; }), configRecords]
+      ]);
+    }
+
     // Migration: Add missing columns to existing PM_Tasks table
     if (existingTables.indexOf(TASKS_TABLE) !== -1) {
       try {
@@ -988,27 +1180,48 @@ async function ensureTables() {
 // =============================================================================
 
 async function loadAllData() {
+  // Load column mapping first
+  await loadColumnMapping();
+  
   try {
     var taskData = await grist.docApi.fetchTable(TASKS_TABLE);
     tasks = [];
     if (taskData && taskData.id) {
       for (var i = 0; i < taskData.id.length; i++) {
-        tasks.push({
-          id: taskData.id[i],
-          Title: taskData.Title ? taskData.Title[i] : '',
-          Description: taskData.Description ? taskData.Description[i] : '',
-          Status: taskData.Status ? taskData.Status[i] : 'todo',
-          Priority: taskData.Priority ? taskData.Priority[i] : 'medium',
-          Assignee: taskData.Assignee ? taskData.Assignee[i] : '',
-          Group_Name: taskData.Group_Name ? taskData.Group_Name[i] : '',
-          Start_Date: taskData.Start_Date ? taskData.Start_Date[i] : null,
-          Due_Date: taskData.Due_Date ? taskData.Due_Date[i] : null,
-          Category: taskData.Category ? taskData.Category[i] : '',
-          Recurrence: taskData.Recurrence ? taskData.Recurrence[i] : 'none',
-          Estimated_Hours: taskData.Estimated_Hours ? taskData.Estimated_Hours[i] : 0,
-          Created_At: taskData.Created_At ? taskData.Created_At[i] : null,
-          Project_Id: taskData.Project_Id ? taskData.Project_Id[i] : null
-        });
+        var task = { id: taskData.id[i] };
+        
+        // Use column mapping to load data
+        var titleCol = getColumnName('tasks', 'title');
+        var descCol = getColumnName('tasks', 'description');
+        var statusCol = getColumnName('tasks', 'status');
+        var priorityCol = getColumnName('tasks', 'priority');
+        var assigneeCol = getColumnName('tasks', 'assignee');
+        var groupCol = getColumnName('tasks', 'group');
+        var startDateCol = getColumnName('tasks', 'startDate');
+        var dueDateCol = getColumnName('tasks', 'dueDate');
+        var categoryCol = getColumnName('tasks', 'category');
+        var tagCol = getColumnName('tasks', 'tag');
+        var recurrenceCol = getColumnName('tasks', 'recurrence');
+        var estimatedHoursCol = getColumnName('tasks', 'estimatedHours');
+        var createdAtCol = getColumnName('tasks', 'createdAt');
+        var projectIdCol = getColumnName('tasks', 'projectId');
+        
+        task.Title = taskData[titleCol] ? taskData[titleCol][i] : '';
+        task.Description = taskData[descCol] ? taskData[descCol][i] : '';
+        task.Status = taskData[statusCol] ? taskData[statusCol][i] : 'todo';
+        task.Priority = taskData[priorityCol] ? taskData[priorityCol][i] : 'medium';
+        task.Assignee = taskData[assigneeCol] ? taskData[assigneeCol][i] : '';
+        task.Group_Name = taskData[groupCol] ? taskData[groupCol][i] : '';
+        task.Start_Date = taskData[startDateCol] ? taskData[startDateCol][i] : null;
+        task.Due_Date = taskData[dueDateCol] ? taskData[dueDateCol][i] : null;
+        task.Category = taskData[categoryCol] ? taskData[categoryCol][i] : '';
+        task.Tag = taskData[tagCol] ? taskData[tagCol][i] : '';
+        task.Recurrence = taskData[recurrenceCol] ? taskData[recurrenceCol][i] : 'none';
+        task.Estimated_Hours = taskData[estimatedHoursCol] ? taskData[estimatedHoursCol][i] : 0;
+        task.Created_At = taskData[createdAtCol] ? taskData[createdAtCol][i] : null;
+        task.Project_Id = taskData[projectIdCol] ? taskData[projectIdCol][i] : null;
+        
+        tasks.push(task);
       }
     }
   } catch (e) {
