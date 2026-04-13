@@ -1600,6 +1600,14 @@ function renderCalendarView() {
     btn.classList.toggle('active', btn.getAttribute('data-mode') === calendarMode);
   });
 
+  // Responsive: apply JS-driven classes so breakpoints work inside Grist iframes
+  var calContainer = document.querySelector('.calendar-container');
+  if (calContainer) {
+    var w = window.innerWidth;
+    calContainer.classList.toggle('cal-compact', w < 768 && w >= 480);
+    calContainer.classList.toggle('cal-mobile', w < 480);
+  }
+
   if (window.innerWidth < 480 && calendarMode !== 'day') { renderCalendarMobileView(); return; }
   if (calendarMode === 'week') { renderCalendarWeekView(); return; }
   if (calendarMode === 'day') { renderCalendarDayView(); return; }
