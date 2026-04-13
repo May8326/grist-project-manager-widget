@@ -1923,7 +1923,15 @@ function renderCalendarDayView() {
 
   var filteredTasks = getFilteredTasks();
   var dayTasks = filteredTasks.filter(function(t) {
-    return t.Due_Date && t.Due_Date >= dayStartTs && t.Due_Date <= dayEndTs;
+    // Tâches dues ce jour précis
+    var dueThisDay = t.Due_Date && t.Due_Date >= dayStartTs && t.Due_Date <= dayEndTs;
+    // Tâches en cours ce jour : commencées avant la fin du jour et finissant après le début du jour
+    var inProgressThisDay = t.Status === 'progress' && t.Start_Date && t.Due_Date &&
+      t.Start_Date <= dayEndTs && t.Due_Date >= dayStartTs;
+    // Tâches en cours sans date de fin définie mais démarrées
+    var inProgressNoEnd = t.Status === 'progress' && t.Start_Date && !t.Due_Date &&
+      t.Start_Date <= dayEndTs;
+    return dueThisDay || inProgressThisDay || inProgressNoEnd;
   });
 
   var statusColors = { todo: '#94a3b8', progress: '#3b82f6', done: '#22c55e' };
@@ -1942,10 +1950,15 @@ function renderCalendarDayView() {
       var taskSubtasks = getTaskSubtasks(task.id);
       var completedSt = taskSubtasks.filter(function(st) { return st.Completed; }).length;
       var stColor = statusColors[task.Status] || '#94a3b8';
+      var dueThisDay = task.Due_Date && task.Due_Date >= dayStartTs && task.Due_Date <= dayEndTs;
+      var isOverdue = task.Due_Date && task.Due_Date < dayStartTs && task.Status !== 'done';
+      var dueBadge = dueThisDay
+        ? '<span class="day-due-badge">📌 ' + (currentLang === 'fr' ? 'Échéance' : 'Due today') + '</span>'
+        : (isOverdue ? '<span class="day-due-badge overdue">⚠️ ' + (currentLang === 'fr' ? 'En retard' : 'Overdue') + '</span>' : '<span class="day-due-badge ongoing">🔄 ' + (currentLang === 'fr' ? 'En cours' : 'In progress') + '</span>');
       html += '<div class="day-task-row" onclick="openEditTaskModal(' + task.id + ')">';
       html += '<div class="day-task-indicator" style="background:' + stColor + '"></div>';
       html += '<div class="day-task-body">';
-      html += '<div class="day-task-title">' + sanitize(task.Title) + '</div>';
+      html += '<div class="day-task-title">' + sanitize(task.Title) + ' ' + dueBadge + '</div>';
       html += '<div class="day-task-meta">';
       if (task.Assignee) html += '<span>👤 ' + sanitize(task.Assignee.split(',')[0].trim()) + '</span>';
       html += '<span style="color:' + priorityColors[task.Priority] + ';">▲ ' + task.Priority + '</span>';
@@ -1983,12 +1996,7 @@ function renderCalendarDayView() {
 }
 
 function openNewTaskForDay(dateStr) {
-  // Navigate to forms tab or open task modal with pre-filled date
-  openAddTaskModal();
-  setTimeout(function() {
-    var dueEl = document.getElementById('task-due');
-    if (dueEl) dueEl.value = dateStr;
-  }, 200);
+  openNewTaskModalWithDate(dateStr);
 }
 
 // =============================================================================
