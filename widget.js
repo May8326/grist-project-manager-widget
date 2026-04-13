@@ -1885,7 +1885,7 @@ function renderCalendarWeekView() {
 
   var daysContainer = document.getElementById('calendar-days');
   daysContainer.innerHTML = daysHtml;
-  daysContainer.classList.add('week-view');
+  daysContainer.className = 'calendar-days week-view';
 }
 
 function calendarNav(dir) {
