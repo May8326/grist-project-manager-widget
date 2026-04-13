@@ -1600,13 +1600,9 @@ function renderCalendarView() {
     btn.classList.toggle('active', btn.getAttribute('data-mode') === calendarMode);
   });
 
-  // Responsive: apply JS-driven classes so breakpoints work inside Grist iframes
-  var calContainer = document.querySelector('.calendar-container');
-  if (calContainer) {
-    var w = window.innerWidth;
-    calContainer.classList.toggle('cal-compact', w < 768 && w >= 480);
-    calContainer.classList.toggle('cal-mobile', w < 480);
-  }
+  // Responsive: classes JS basées sur la largeur réelle du container (fiable dans iframes)
+  applyCalendarResponsiveClasses();
+  attachCalendarResizeObserver();
 
   if (window.innerWidth < 480 && calendarMode !== 'day') { renderCalendarMobileView(); return; }
   if (calendarMode === 'week') { renderCalendarWeekView(); return; }
@@ -1967,10 +1963,38 @@ function renderCalendarMobileView() {
   daysContainer.className = 'calendar-days calendar-mobile-list';
 }
 
+// Responsive calendar: ResizeObserver (fiable dans les iframes Grist) + window resize en fallback
 var _calResizeTimer;
+var _calResizeObserver = null;
+
+function applyCalendarResponsiveClasses() {
+  var calContainer = document.querySelector('.calendar-container');
+  if (!calContainer) return;
+  var w = calContainer.getBoundingClientRect().width || window.innerWidth;
+  calContainer.classList.toggle('cal-compact', w < 768 && w >= 480);
+  calContainer.classList.toggle('cal-mobile', w < 480);
+}
+
+function attachCalendarResizeObserver() {
+  var calContainer = document.querySelector('.calendar-container');
+  if (!calContainer || _calResizeObserver) return;
+  if (window.ResizeObserver) {
+    _calResizeObserver = new ResizeObserver(function() {
+      clearTimeout(_calResizeTimer);
+      _calResizeTimer = setTimeout(function() {
+        applyCalendarResponsiveClasses();
+        var calTab = document.getElementById('tab-calendar');
+        if (calTab && calTab.classList.contains('active')) renderCalendarView();
+      }, 150);
+    });
+    _calResizeObserver.observe(calContainer);
+  }
+}
+
 window.addEventListener('resize', function() {
   clearTimeout(_calResizeTimer);
   _calResizeTimer = setTimeout(function() {
+    applyCalendarResponsiveClasses();
     var calTab = document.getElementById('tab-calendar');
     if (calTab && calTab.classList.contains('active')) renderCalendarView();
   }, 200);
