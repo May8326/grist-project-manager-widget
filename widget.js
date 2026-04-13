@@ -1665,6 +1665,7 @@ function renderCalendarView() {
   var daysContainer = document.getElementById('calendar-days');
   daysContainer.innerHTML = daysHtml;
   daysContainer.classList.remove('week-view');
+  daysContainer.classList.remove('day-view');
 }
 
 function renderCalendarDay(dayNum, date, dayTasks, isOtherMonth, isToday, isWeekView) {
