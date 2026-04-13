@@ -172,6 +172,11 @@ var i18n = {
     noSubtasks: 'Aucune sous-tâche',
     subtaskCompleted: 'Sous-tâche terminée',
     subtaskDeleted: 'Sous-tâche supprimée',
+    subtaskSaved: 'Sous-tâche modifiée',
+    editSubtask: 'Modifier la sous-tâche',
+    subtaskAssignee: 'Responsable',
+    subtaskDueDate: 'Échéance',
+    noAssignee: 'Non assigné',
     dependencies: 'Dépendances',
     blockedBy: 'Bloqué par',
     blocks: 'Bloque',
@@ -209,6 +214,10 @@ var i18n = {
     recurrenceWeekly: 'Hebdomadaire',
     recurrenceMonthly: 'Mensuelle',
     nextOccurrence: 'Prochaine occurrence créée',
+    recurrenceExplain: 'Quand cette tâche est marquée "Terminée", une nouvelle occurrence est automatiquement créée avec les dates décalées.',
+    generateMonth: 'Générer pour le mois',
+    generateYear: 'Générer pour l\'année',
+    occurrencesGenerated: 'occurrences générées',
     customFields: 'Champs personnalisés',
     manageCustomFields: 'Gérer les champs',
     addCustomField: 'Ajouter un champ',
@@ -398,6 +407,11 @@ var i18n = {
     noSubtasks: 'No subtasks',
     subtaskCompleted: 'Subtask completed',
     subtaskDeleted: 'Subtask deleted',
+    subtaskSaved: 'Subtask updated',
+    editSubtask: 'Edit subtask',
+    subtaskAssignee: 'Assignee',
+    subtaskDueDate: 'Due date',
+    noAssignee: 'Unassigned',
     dependencies: 'Dependencies',
     blockedBy: 'Blocked by',
     blocks: 'Blocks',
@@ -435,6 +449,10 @@ var i18n = {
     recurrenceWeekly: 'Weekly',
     recurrenceMonthly: 'Monthly',
     nextOccurrence: 'Next occurrence created',
+    recurrenceExplain: 'When this task is marked "Done", a new occurrence is automatically created with shifted dates.',
+    generateMonth: 'Generate for the month',
+    generateYear: 'Generate for the year',
+    occurrencesGenerated: 'occurrences generated',
     customFields: 'Custom Fields',
     manageCustomFields: 'Manage fields',
     addCustomField: 'Add field',
@@ -501,8 +519,9 @@ var ganttYear = new Date().getFullYear();
 var ganttMonth = new Date().getMonth();
 var calendarYear = new Date().getFullYear();
 var calendarMonth = new Date().getMonth();
-var calendarMode = 'month'; // 'month' or 'week'
+var calendarMode = 'month'; // 'month', 'week' or 'day'
 var calendarWeekOffset = 0; // Offset in weeks from current week
+var calendarDayOffset = 0; // Offset in days from today (day view)
 
 var TASKS_TABLE = 'PM_Tasks';
 var USERS_TABLE = 'PM_Users';
@@ -1154,15 +1173,23 @@ async function ensureTables() {
       }
     }
 
-    // Migration: Add Blocked_By_Subtask_Id to PM_Subtasks
+    // Migration: Add Blocked_By_Subtask_Id, Assignee, Due_Date to PM_Subtasks
     if (existingTables.indexOf(SUBTASKS_TABLE) !== -1) {
       try {
         var stInfo = await grist.docApi.fetchTable(SUBTASKS_TABLE);
         var stCols = Object.keys(stInfo);
+        var stActions = [];
         if (stCols.indexOf('Blocked_By_Subtask_Id') === -1) {
-          await grist.docApi.applyUserActions([
-            ['AddColumn', SUBTASKS_TABLE, 'Blocked_By_Subtask_Id', { type: 'Int' }]
-          ]);
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Blocked_By_Subtask_Id', { type: 'Int' }]);
+        }
+        if (stCols.indexOf('Assignee') === -1) {
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Assignee', { type: 'Text' }]);
+        }
+        if (stCols.indexOf('Due_Date') === -1) {
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Due_Date', { type: 'Int' }]);
+        }
+        if (stActions.length > 0) {
+          await grist.docApi.applyUserActions(stActions);
         }
       } catch (e) {
         console.log('Subtask migration completed');
@@ -1301,6 +1328,8 @@ async function loadAllData() {
           Completed: subtaskData.Completed ? subtaskData.Completed[i] : false,
           Order: subtaskData.Order ? subtaskData.Order[i] : 0,
           Blocked_By_Subtask_Id: subtaskData.Blocked_By_Subtask_Id ? subtaskData.Blocked_By_Subtask_Id[i] : null,
+          Assignee: subtaskData.Assignee ? subtaskData.Assignee[i] : '',
+          Due_Date: subtaskData.Due_Date ? subtaskData.Due_Date[i] : null,
           Created_At: subtaskData.Created_At ? subtaskData.Created_At[i] : null
         });
       }
@@ -1474,16 +1503,38 @@ async function loadAllData() {
 function renderProjectSelector() {
   var container = document.getElementById('project-selector');
   if (!container) return;
-  
-  var html = '<select id="project-filter" onchange="filterByProject(this.value)">';
+
+  var html = '<select id="project-filter" onchange="filterByProject(this.value)" class="' + (currentProjectId ? 'project-filter-active' : '') + '">';
   html += '<option value="">' + t('allProjects') + '</option>';
   projects.forEach(function(proj) {
     var selected = currentProjectId === proj.id ? ' selected' : '';
     html += '<option value="' + proj.id + '"' + selected + '>' + sanitize(proj.Name) + '</option>';
   });
   html += '</select>';
+  if (currentProjectId) {
+    var proj = projects.find(function(p) { return p.id === currentProjectId; });
+    var color = (proj && proj.Color) ? proj.Color : '#6366f1';
+    html += '<span class="project-active-badge" style="background:' + color + '20;color:' + color + ';border-color:' + color + '40;">🎯 ' + sanitize(proj ? proj.Name : '') + '</span>';
+  }
   html += '<button class="btn-icon" onclick="openProjectModal()" title="' + t('manageProjects') + '">⚙️</button>';
   container.innerHTML = html;
+
+  // Bandeau de filtre actif en haut de page
+  var banner = document.getElementById('project-filter-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'project-filter-banner';
+    var appEl = document.querySelector('.app-container') || document.body;
+    appEl.insertBefore(banner, appEl.firstChild);
+  }
+  if (currentProjectId) {
+    var proj2 = projects.find(function(p) { return p.id === currentProjectId; });
+    var c2 = (proj2 && proj2.Color) ? proj2.Color : '#6366f1';
+    banner.innerHTML = '🎯 Filtre actif : <strong>' + sanitize(proj2 ? proj2.Name : '') + '</strong> — <a href="#" onclick="filterByProject(\'\');return false;" style="color:inherit;text-decoration:underline;">Voir tous les projets</a>';
+    banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 16px;background:' + c2 + '15;border-bottom:2px solid' + c2 + ';color:' + c2 + ';font-size:12px;font-weight:600;';
+  } else {
+    banner.style.display = 'none';
+  }
 }
 
 function filterByProject(projectId) {
@@ -1549,10 +1600,8 @@ function renderCalendarView() {
     btn.classList.toggle('active', btn.getAttribute('data-mode') === calendarMode);
   });
 
-  if (calendarMode === 'week') {
-    renderCalendarWeekView();
-    return;
-  }
+  if (calendarMode === 'week') { renderCalendarWeekView(); return; }
+  if (calendarMode === 'day') { renderCalendarDayView(); return; }
 
   var monthNames = currentLang === 'fr'
     ? ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
@@ -1742,14 +1791,14 @@ function calendarToday() {
   calendarYear = new Date().getFullYear();
   calendarMonth = new Date().getMonth();
   calendarWeekOffset = 0;
+  calendarDayOffset = 0;
   renderCalendarView();
 }
 
 function setCalendarMode(mode) {
   calendarMode = mode;
-  if (mode === 'week') {
-    calendarWeekOffset = 0;
-  }
+  if (mode === 'week') calendarWeekOffset = 0;
+  if (mode === 'day') calendarDayOffset = 0;
   renderCalendarView();
 }
 
@@ -1842,18 +1891,104 @@ function renderCalendarWeekView() {
 function calendarNav(dir) {
   if (calendarMode === 'week') {
     calendarWeekOffset += dir;
+  } else if (calendarMode === 'day') {
+    calendarDayOffset += dir;
   } else {
     calendarMonth += dir;
-    if (calendarMonth > 11) {
-      calendarMonth = 0;
-      calendarYear++;
-    }
-    if (calendarMonth < 0) {
-      calendarMonth = 11;
-      calendarYear--;
-    }
+    if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+    if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
   }
   renderCalendarView();
+}
+
+function renderCalendarDayView() {
+  var today = new Date();
+  var viewDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + calendarDayOffset);
+  var isToday = calendarDayOffset === 0;
+
+  var monthNames = currentLang === 'fr'
+    ? ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+    : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var dayNamesFull = currentLang === 'fr'
+    ? ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+    : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  document.getElementById('calendar-month-title').textContent =
+    dayNamesFull[viewDate.getDay()] + ' ' + viewDate.getDate() + ' ' + monthNames[viewDate.getMonth()] + ' ' + viewDate.getFullYear();
+
+  var dayStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate(), 0, 0, 0);
+  var dayEnd = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate(), 23, 59, 59);
+  var dayStartTs = Math.floor(dayStart.getTime() / 1000);
+  var dayEndTs = Math.floor(dayEnd.getTime() / 1000);
+
+  var filteredTasks = getFilteredTasks();
+  var dayTasks = filteredTasks.filter(function(t) {
+    return t.Due_Date && t.Due_Date >= dayStartTs && t.Due_Date <= dayEndTs;
+  });
+
+  var statusColors = { todo: '#94a3b8', progress: '#3b82f6', done: '#22c55e' };
+  var priorityColors = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
+
+  var html = '<div class="calendar-day-view">';
+  html += '<div class="calendar-day-header' + (isToday ? ' today' : '') + '">';
+  html += isToday ? '📅 ' + (currentLang === 'fr' ? "Aujourd'hui" : 'Today') : '';
+  html += '<span class="day-task-count">' + dayTasks.length + ' ' + (currentLang === 'fr' ? 'tâche(s)' : 'task(s)') + '</span>';
+  html += '</div>';
+
+  if (dayTasks.length === 0) {
+    html += '<div class="day-empty">' + (currentLang === 'fr' ? 'Aucune tâche ce jour' : 'No tasks today') + '</div>';
+  } else {
+    dayTasks.forEach(function(task) {
+      var taskSubtasks = getTaskSubtasks(task.id);
+      var completedSt = taskSubtasks.filter(function(st) { return st.Completed; }).length;
+      var stColor = statusColors[task.Status] || '#94a3b8';
+      html += '<div class="day-task-row" onclick="openEditTaskModal(' + task.id + ')">';
+      html += '<div class="day-task-indicator" style="background:' + stColor + '"></div>';
+      html += '<div class="day-task-body">';
+      html += '<div class="day-task-title">' + sanitize(task.Title) + '</div>';
+      html += '<div class="day-task-meta">';
+      if (task.Assignee) html += '<span>👤 ' + sanitize(task.Assignee.split(',')[0].trim()) + '</span>';
+      html += '<span style="color:' + priorityColors[task.Priority] + ';">▲ ' + task.Priority + '</span>';
+      if (taskSubtasks.length > 0) {
+        html += '<span>☑️ ' + completedSt + '/' + taskSubtasks.length + '</span>';
+      }
+      html += '</div>';
+      if (taskSubtasks.length > 0) {
+        html += '<div class="day-subtasks">';
+        taskSubtasks.forEach(function(st) {
+          html += '<div class="day-subtask-item">';
+          html += '<input type="checkbox" ' + (st.Completed ? 'checked' : '') + ' onclick="event.stopPropagation();toggleSubtask(' + st.id + ', ' + !st.Completed + ')" />';
+          html += '<span class="' + (st.Completed ? 'st-done' : '') + '">' + sanitize(st.Title) + '</span>';
+          if (st.Assignee) html += '<span class="day-st-assignee">👤 ' + sanitize(st.Assignee) + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+  }
+
+  // Quick add task for this day
+  var dateStr = viewDate.getFullYear() + '-' + String(viewDate.getMonth() + 1).padStart(2, '0') + '-' + String(viewDate.getDate()).padStart(2, '0');
+  html += '<div class="day-add-task" onclick="openNewTaskForDay(\'' + dateStr + '\')">';
+  html += '+ ' + (currentLang === 'fr' ? 'Ajouter une tâche ce jour' : 'Add a task for this day');
+  html += '</div>';
+  html += '</div>';
+
+  var weekdays = document.getElementById('calendar-weekdays');
+  var days = document.getElementById('calendar-days');
+  if (weekdays) weekdays.innerHTML = '';
+  if (days) { days.innerHTML = html; days.className = 'calendar-days day-view'; }
+}
+
+function openNewTaskForDay(dateStr) {
+  // Navigate to forms tab or open task modal with pre-filled date
+  openAddTaskModal();
+  setTimeout(function() {
+    var dueEl = document.getElementById('task-due');
+    if (dueEl) dueEl.value = dateStr;
+  }, 200);
 }
 
 // =============================================================================
@@ -3234,19 +3369,44 @@ function openEditTaskModal(taskId, preserveAssignees) {
       var st = taskSubtasks[si];
       var stBlocked = isSubtaskBlocked(st);
       var stBlocker = getSubtaskBlocker(st);
-      html += '<div class="subtask-item' + (st.Completed ? ' completed' : '') + (stBlocked ? ' blocked' : '') + '" data-id="' + st.id + '">';
+      var stDueDateStr = st.Due_Date ? new Date(st.Due_Date * 1000).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+      var stDueClass = (st.Due_Date && !st.Completed && st.Due_Date < Math.floor(Date.now() / 1000)) ? ' st-overdue' : '';
+      html += '<div class="subtask-item' + (st.Completed ? ' completed' : '') + (stBlocked ? ' blocked' : '') + '" data-id="' + st.id + '" id="st-row-' + st.id + '">';
+      // Normal view
+      html += '<div class="subtask-view" id="st-view-' + st.id + '">';
       html += '<input type="checkbox" class="subtask-checkbox" ' + (st.Completed ? 'checked' : '') + (stBlocked ? ' disabled' : '') + ' onchange="toggleSubtask(' + st.id + ', this.checked)" />';
       html += '<span class="subtask-title">' + sanitize(st.Title) + '</span>';
       if (stBlocked && stBlocker) {
         html += '<span class="subtask-blocked-badge" title="' + t('blockedBy') + ' ' + sanitize(stBlocker.Title) + '">🔒</span>';
       }
+      // Meta : assignee + due date
+      html += '<span class="subtask-meta">';
+      if (st.Assignee) html += '<span class="subtask-assignee-badge">👤 ' + sanitize(st.Assignee) + '</span>';
+      if (stDueDateStr) html += '<span class="subtask-due-badge' + stDueClass + '">📅 ' + stDueDateStr + '</span>';
+      html += '</span>';
+      html += '<button class="subtask-edit-btn" onclick="startEditSubtask(' + st.id + ', ' + task.id + ')" title="' + t('editSubtask') + '">✏️</button>';
       html += '<button class="subtask-dep-btn" onclick="openSubtaskDepModal(' + st.id + ', ' + task.id + ')" title="' + t('dependencies') + '">🔗</button>';
       html += '<button class="subtask-delete" onclick="deleteSubtask(' + st.id + ', ' + task.id + ')" title="' + t('delete') + '">✕</button>';
+      html += '</div>';
+      // Edit view (hidden by default)
+      var userOptions = '<option value="">' + t('noAssignee') + '</option>';
+      for (var ui = 0; ui < users.length; ui++) {
+        var uSel = users[ui].Name === st.Assignee ? ' selected' : '';
+        userOptions += '<option value="' + sanitize(users[ui].Name) + '"' + uSel + '>' + sanitize(users[ui].Name) + '</option>';
+      }
+      var stDueDateInput = st.Due_Date ? new Date(st.Due_Date * 1000).toISOString().split('T')[0] : '';
+      html += '<div class="subtask-edit-form" id="st-edit-' + st.id + '" style="display:none;">';
+      html += '<input type="text" class="subtask-edit-title" id="st-title-' + st.id + '" value="' + sanitize(st.Title) + '" />';
+      html += '<select class="subtask-edit-select" id="st-assignee-' + st.id + '">' + userOptions + '</select>';
+      html += '<input type="date" class="subtask-edit-date" id="st-due-' + st.id + '" value="' + stDueDateInput + '" />';
+      html += '<button class="subtask-save-btn" onclick="saveEditSubtask(' + st.id + ', ' + task.id + ')">✓</button>';
+      html += '<button class="subtask-cancel-btn" onclick="cancelEditSubtask(' + st.id + ')">✕</button>';
+      html += '</div>';
       html += '</div>';
     }
   }
   html += '</div>';
-  
+
   // Add subtask input
   html += '<div class="subtask-add-row">';
   html += '<input type="text" id="new-subtask-input" class="subtask-input" placeholder="' + t('subtaskPlaceholder') + '" onkeypress="if(event.key===\'Enter\')addSubtask(' + task.id + ')" />';
@@ -3456,14 +3616,22 @@ function openEditTaskModal(taskId, preserveAssignees) {
   html += '</div>';
 
   // Recurrence card
+  var hasRecurrence = task.Recurrence && task.Recurrence !== 'none';
   html += '<div class="detail-card">';
   html += '<h4>🔄 ' + t('recurrence') + '</h4>';
   html += '<select id="task-recurrence" class="recurrence-select">';
-  html += '<option value="none"' + (task.Recurrence === 'none' || !task.Recurrence ? ' selected' : '') + '>' + t('recurrenceNone') + '</option>';
+  html += '<option value="none"' + (!hasRecurrence ? ' selected' : '') + '>' + t('recurrenceNone') + '</option>';
   html += '<option value="daily"' + (task.Recurrence === 'daily' ? ' selected' : '') + '>' + t('recurrenceDaily') + '</option>';
   html += '<option value="weekly"' + (task.Recurrence === 'weekly' ? ' selected' : '') + '>' + t('recurrenceWeekly') + '</option>';
   html += '<option value="monthly"' + (task.Recurrence === 'monthly' ? ' selected' : '') + '>' + t('recurrenceMonthly') + '</option>';
   html += '</select>';
+  if (hasRecurrence) {
+    html += '<div class="recurrence-explain">ℹ️ ' + t('recurrenceExplain') + '</div>';
+    html += '<div class="recurrence-batch-btns">';
+    html += '<button class="btn btn-secondary btn-sm" onclick="generateOccurrences(' + task.id + ', \'month\')">' + t('generateMonth') + '</button>';
+    html += '<button class="btn btn-secondary btn-sm" onclick="generateOccurrences(' + task.id + ', \'year\')">' + t('generateYear') + '</button>';
+    html += '</div>';
+  }
   html += '</div>';
 
   html += '</div>'; // end right
@@ -3662,6 +3830,45 @@ async function deleteSubtask(subtaskId, parentTaskId) {
     openEditTaskModal(parentTaskId, true);
   } catch (e) {
     console.error('Error deleting subtask:', e);
+  }
+}
+
+// Édition inline d'une sous-tâche
+function startEditSubtask(subtaskId, taskId) {
+  var viewEl = document.getElementById('st-view-' + subtaskId);
+  var editEl = document.getElementById('st-edit-' + subtaskId);
+  if (viewEl) viewEl.style.display = 'none';
+  if (editEl) { editEl.style.display = 'flex'; document.getElementById('st-title-' + subtaskId).focus(); }
+}
+
+function cancelEditSubtask(subtaskId) {
+  var viewEl = document.getElementById('st-view-' + subtaskId);
+  var editEl = document.getElementById('st-edit-' + subtaskId);
+  if (viewEl) viewEl.style.display = 'flex';
+  if (editEl) editEl.style.display = 'none';
+}
+
+async function saveEditSubtask(subtaskId, parentTaskId) {
+  var titleInput = document.getElementById('st-title-' + subtaskId);
+  var assigneeSelect = document.getElementById('st-assignee-' + subtaskId);
+  var dueDateInput = document.getElementById('st-due-' + subtaskId);
+  if (!titleInput) return;
+  var newTitle = titleInput.value.trim();
+  if (!newTitle) return;
+  var newAssignee = assigneeSelect ? assigneeSelect.value : '';
+  var newDueDate = dueDateInput && dueDateInput.value ? Math.floor(new Date(dueDateInput.value).getTime() / 1000) : null;
+  var fields = { Title: newTitle, Assignee: newAssignee };
+  if (newDueDate) fields.Due_Date = newDueDate;
+  var savedAssignees = editAssignees.slice();
+  try {
+    await grist.docApi.applyUserActions([['UpdateRecord', SUBTASKS_TABLE, subtaskId, fields]]);
+    showToast(t('subtaskSaved'), 'success');
+    await loadAllData();
+    editAssignees = savedAssignees;
+    openEditTaskModal(parentTaskId, true);
+  } catch (e) {
+    console.error('Error saving subtask:', e);
+    showToast('Error: ' + e.message, 'error');
   }
 }
 
@@ -3965,6 +4172,76 @@ async function deleteCustomField(fieldId) {
 // =============================================================================
 // RECURRENCE HANDLING
 // =============================================================================
+
+// Génère toutes les occurrences d'une tâche récurrente sur le mois ou l'année en cours.
+// N'écrase pas les occurrences déjà existantes (vérifie par titre + date).
+async function generateOccurrences(taskId, period) {
+  var task = tasks.find(function(t) { return t.id === taskId; });
+  if (!task || !task.Recurrence || task.Recurrence === 'none') return;
+
+  var now = Math.floor(Date.now() / 1000);
+  var periodEnd;
+  if (period === 'month') {
+    var endOfMonth = new Date(); endOfMonth.setDate(1); endOfMonth.setMonth(endOfMonth.getMonth() + 1); endOfMonth.setDate(0); endOfMonth.setHours(23, 59, 59);
+    periodEnd = Math.floor(endOfMonth.getTime() / 1000);
+  } else {
+    var endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
+    periodEnd = Math.floor(endOfYear.getTime() / 1000);
+  }
+
+  var stepSeconds = task.Recurrence === 'daily' ? 86400 : task.Recurrence === 'weekly' ? 604800 : 2592000;
+
+  // Trouver la dernière date d'échéance parmi les occurrences existantes du même titre
+  var existingDates = tasks
+    .filter(function(t) { return t.Title === task.Title && t.Due_Date; })
+    .map(function(t) { return t.Due_Date; });
+  var cursor = existingDates.length > 0 ? Math.max.apply(null, existingDates) : (task.Due_Date || now);
+
+  var actions = [];
+  var count = 0;
+  var safety = 0;
+  while (cursor + stepSeconds <= periodEnd && safety < 100) {
+    cursor += stepSeconds;
+    safety++;
+    // Ne pas créer en double
+    var alreadyExists = tasks.some(function(t) {
+      return t.Title === task.Title && t.Due_Date && Math.abs(t.Due_Date - cursor) < 43200;
+    });
+    if (alreadyExists) continue;
+    var record = {};
+    setField(record, 'tasks', 'title', task.Title);
+    setField(record, 'tasks', 'description', task.Description);
+    setField(record, 'tasks', 'status', 'todo');
+    setField(record, 'tasks', 'priority', task.Priority);
+    setField(record, 'tasks', 'assignee', task.Assignee);
+    setField(record, 'tasks', 'group', task.Group_Name);
+    var startOffset = (task.Start_Date && task.Due_Date) ? (task.Due_Date - task.Start_Date) : 0;
+    setField(record, 'tasks', 'startDate', cursor - startOffset);
+    setField(record, 'tasks', 'dueDate', cursor);
+    setField(record, 'tasks', 'category', task.Category);
+    setField(record, 'tasks', 'tag', task.Tag);
+    setField(record, 'tasks', 'recurrence', task.Recurrence);
+    setField(record, 'tasks', 'estimatedHours', task.Estimated_Hours);
+    setField(record, 'tasks', 'projectId', task.Project_Id);
+    setField(record, 'tasks', 'createdAt', now);
+    actions.push(['AddRecord', TASKS_TABLE, null, record]);
+    count++;
+  }
+
+  if (actions.length === 0) {
+    showToast('Aucune occurrence à générer pour cette période', 'info');
+    return;
+  }
+  try {
+    await grist.docApi.applyUserActions(actions);
+    showToast(count + ' ' + t('occurrencesGenerated'), 'success');
+    await loadAllData();
+    renderCurrentView();
+  } catch (e) {
+    console.error('Error generating occurrences:', e);
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
 
 async function createNextOccurrence(task) {
   if (!task.Recurrence || task.Recurrence === 'none') return;
@@ -4446,6 +4723,120 @@ function renderWorkloadChart() {
   }
 
   document.getElementById('chart-workload').innerHTML = html;
+
+  // Populate agent filter and render timeline
+  var agentSelect = document.getElementById('timeline-agent');
+  if (agentSelect) {
+    var agentNames = Object.keys(workloadData).sort();
+    var currentAgentVal = agentSelect.value;
+    agentSelect.innerHTML = '<option value="">' + (currentLang === 'fr' ? 'Tous les agents' : 'All agents') + '</option>';
+    agentNames.forEach(function(name) {
+      var sel = name === currentAgentVal ? ' selected' : '';
+      agentSelect.innerHTML += '<option value="' + sanitize(name) + '"' + sel + '>' + sanitize(name) + '</option>';
+    });
+  }
+  renderTimelineChart();
+}
+
+function renderTimelineChart() {
+  var container = document.getElementById('chart-timeline');
+  if (!container) return;
+
+  var periodSel = document.getElementById('timeline-period');
+  var agentSel = document.getElementById('timeline-agent');
+  var period = periodSel ? periodSel.value : 'weeks';
+  var agentFilter = agentSel ? agentSel.value : '';
+
+  var now = new Date(); now.setHours(0, 0, 0, 0);
+  var slots = [];
+  if (period === 'weeks') {
+    for (var w = 0; w < 8; w++) {
+      var start = new Date(now); start.setDate(start.getDate() - start.getDay() + 1 + w * 7);
+      var end = new Date(start); end.setDate(end.getDate() + 6); end.setHours(23, 59, 59);
+      slots.push({ label: start.getDate() + '/' + (start.getMonth() + 1), start: Math.floor(start.getTime() / 1000), end: Math.floor(end.getTime() / 1000) });
+    }
+  } else {
+    for (var m = 0; m < 6; m++) {
+      var d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+      var dEnd = new Date(now.getFullYear(), now.getMonth() + m + 1, 0, 23, 59, 59);
+      var monthNames = currentLang === 'fr'
+        ? ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+        : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      slots.push({ label: monthNames[d.getMonth()], start: Math.floor(d.getTime() / 1000), end: Math.floor(dEnd.getTime() / 1000) });
+    }
+  }
+
+  // Collect tasks per slot per agent
+  var agentColors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+  var allAgents = [];
+  var filteredTasks = getFilteredTasks().filter(function(t) { return t.Status !== 'done'; });
+
+  filteredTasks.forEach(function(t) {
+    if (!t.Assignee) return;
+    t.Assignee.split(',').forEach(function(a) {
+      var name = getUserDisplayName(a.trim());
+      if (allAgents.indexOf(name) === -1) allAgents.push(name);
+    });
+  });
+  allAgents.sort();
+
+  var visibleAgents = agentFilter ? [agentFilter] : allAgents;
+
+  // Build data[slot][agent] = count
+  var data = slots.map(function(slot) {
+    var row = { label: slot.label, total: 0 };
+    visibleAgents.forEach(function(agent) { row[agent] = 0; });
+    filteredTasks.forEach(function(t) {
+      if (!t.Due_Date || t.Due_Date < slot.start || t.Due_Date > slot.end) return;
+      if (!t.Assignee) return;
+      t.Assignee.split(',').forEach(function(a) {
+        var name = getUserDisplayName(a.trim());
+        if (visibleAgents.indexOf(name) === -1) return;
+        row[name] = (row[name] || 0) + 1;
+        row.total++;
+      });
+    });
+    return row;
+  });
+
+  var maxVal = Math.max.apply(null, data.map(function(d) { return d.total; }));
+  if (maxVal === 0) maxVal = 1;
+  var BAR_H = 120;
+
+  var html = '<div style="display:flex;gap:4px;align-items:flex-end;min-height:' + (BAR_H + 50) + 'px;">';
+  data.forEach(function(slot) {
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">';
+    html += '<span style="font-size:10px;color:#64748b;font-weight:600;">' + (slot.total || '') + '</span>';
+    html += '<div style="width:100%;display:flex;flex-direction:column-reverse;gap:1px;">';
+    var stackH = 0;
+    visibleAgents.forEach(function(agent, idx) {
+      var count = slot[agent] || 0;
+      if (count === 0) return;
+      var h = Math.max(Math.round((count / maxVal) * BAR_H), 4);
+      stackH += h;
+      var color = agentColors[idx % agentColors.length];
+      html += '<div title="' + sanitize(agent) + ' : ' + count + '" style="height:' + h + 'px;background:' + color + ';border-radius:2px;opacity:0.85;"></div>';
+    });
+    if (stackH === 0) {
+      html += '<div style="height:4px;background:#e2e8f0;border-radius:2px;"></div>';
+    }
+    html += '</div>';
+    html += '<span style="font-size:10px;color:#94a3b8;margin-top:4px;">' + slot.label + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Legend
+  if (visibleAgents.length > 1) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">';
+    visibleAgents.forEach(function(agent, idx) {
+      var color = agentColors[idx % agentColors.length];
+      html += '<span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:' + color + ';border-radius:2px;"></span>' + sanitize(agent) + '</span>';
+    });
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
 }
 
 // =============================================================================

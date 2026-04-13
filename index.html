@@ -134,6 +134,21 @@
       border-color: #4f46e5;
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
     }
+    .project-filter-active {
+      background: linear-gradient(135deg, #eff6ff, #e0e7ff) !important;
+      border-color: #4f46e5 !important;
+      box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
+    }
+    .project-active-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 12px;
+      border: 1px solid;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
     body.dark-mode .project-selector select {
       background: #1e293b;
       color: #f1f5f9;
@@ -873,6 +888,44 @@
       max-height: none;
     }
 
+    /* ========== DAY VIEW ========== */
+    .calendar-days.day-view { display: block; }
+    .calendar-day-view { max-width: 700px; margin: 0 auto; }
+    .calendar-day-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: #f8fafc; border-radius: 8px; margin-bottom: 12px;
+      font-weight: 600; font-size: 13px; color: #475569;
+    }
+    .calendar-day-header.today { background: #eff6ff; color: #3b82f6; }
+    .day-task-count { font-size: 12px; font-weight: 500; color: #94a3b8; }
+    .day-empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; }
+    .day-task-row {
+      display: flex; gap: 12px; padding: 12px 14px; margin-bottom: 8px;
+      background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .day-task-row:hover { border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,0.1); }
+    .day-task-indicator { width: 4px; border-radius: 4px; flex-shrink: 0; min-height: 24px; }
+    .day-task-body { flex: 1; min-width: 0; }
+    .day-task-title { font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+    .day-task-meta { display: flex; gap: 12px; font-size: 11px; color: #64748b; margin-bottom: 6px; }
+    .day-subtasks { border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
+    .day-subtask-item {
+      display: flex; align-items: center; gap: 8px; font-size: 12px; color: #475569; padding: 2px 0;
+    }
+    .day-subtask-item input[type="checkbox"] { width: 14px; height: 14px; accent-color: #22c55e; cursor: pointer; }
+    .day-subtask-item .st-done { text-decoration: line-through; color: #94a3b8; }
+    .day-st-assignee { font-size: 11px; color: #3b82f6; margin-left: auto; }
+    .day-add-task {
+      display: flex; align-items: center; gap: 6px; padding: 12px 14px; margin-top: 8px;
+      border: 2px dashed #e2e8f0; border-radius: 10px; color: #94a3b8;
+      font-size: 13px; cursor: pointer; transition: all 0.15s;
+    }
+    .day-add-task:hover { border-color: #6366f1; color: #6366f1; background: #f8f8ff; }
+    body.dark-mode .day-task-row { background: #1e293b; border-color: #334155; }
+    body.dark-mode .day-task-title { color: #f1f5f9; }
+    body.dark-mode .calendar-day-header { background: #1e293b; color: #94a3b8; }
+
     /* ========== GANTT VIEW ========== */
     .gantt-controls {
       display: flex;
@@ -1144,6 +1197,21 @@
     body.dark-mode .subtask-item:hover {
       background: #334155;
     }
+    body.dark-mode .subtask-edit-title,
+    body.dark-mode .subtask-edit-select,
+    body.dark-mode .subtask-edit-date {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-color: #475569;
+    }
+    body.dark-mode .subtask-assignee-badge {
+      background: #1e3a5f;
+      color: #93c5fd;
+    }
+    body.dark-mode .subtask-due-badge {
+      background: #14532d;
+      color: #86efac;
+    }
     body.dark-mode .modal-detail-footer {
       background: #1e293b;
       border-color: #334155;
@@ -1361,6 +1429,94 @@
     .subtask-dep-btn:hover {
       opacity: 1;
     }
+
+    /* Subtask view/edit toggle */
+    .subtask-view {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .subtask-meta {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .subtask-assignee-badge, .subtask-due-badge {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .subtask-assignee-badge {
+      background: #eff6ff;
+      color: #3b82f6;
+    }
+    .subtask-due-badge {
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+    .subtask-due-badge.st-overdue {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+    .subtask-edit-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      padding: 2px 4px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .subtask-item:hover .subtask-edit-btn { opacity: 0.6; }
+    .subtask-edit-btn:hover { opacity: 1 !important; background: #eff6ff; }
+    .subtask-edit-form {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      flex-wrap: wrap;
+      padding: 4px 0;
+    }
+    .subtask-edit-title {
+      flex: 1;
+      min-width: 120px;
+      padding: 5px 8px;
+      border: 1px solid #3b82f6;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .subtask-edit-select, .subtask-edit-date {
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: inherit;
+      background: white;
+    }
+    .subtask-save-btn, .subtask-cancel-btn {
+      width: 26px;
+      height: 26px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .subtask-save-btn { background: #22c55e; color: white; }
+    .subtask-save-btn:hover { background: #16a34a; }
+    .subtask-cancel-btn { background: #e2e8f0; color: #64748b; }
+    .subtask-cancel-btn:hover { background: #fee2e2; color: #ef4444; }
 
     /* Subtasks in Table View */
     .toggle-btn {
@@ -1776,6 +1932,22 @@
       border-color: #6366f1;
       box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
     }
+    .recurrence-explain {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #eff6ff;
+      border-left: 3px solid #3b82f6;
+      border-radius: 0 6px 6px 0;
+      font-size: 11px;
+      color: #1d4ed8;
+      line-height: 1.4;
+    }
+    .recurrence-batch-btns {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .recurrence-batch-btns .btn { flex: 1; font-size: 11px; padding: 6px 8px; }
 
     /* ========== CUSTOM FIELDS ========== */
     .custom-fields-section {
@@ -2757,6 +2929,7 @@
           <div class="calendar-mode-btns">
             <button class="calendar-mode-btn active" data-mode="month" onclick="setCalendarMode('month')">Mois</button>
             <button class="calendar-mode-btn" data-mode="week" onclick="setCalendarMode('week')">Semaine</button>
+            <button class="calendar-mode-btn" data-mode="day" onclick="setCalendarMode('day')">Jour</button>
           </div>
         </div>
         <div class="calendar-grid">
@@ -2848,6 +3021,23 @@
           <div class="stats-chart-card" style="grid-column: span 2;">
             <h3>⚠️ <span data-i18n="chartWorkload">Charge de travail (risque de surcharge)</span></h3>
             <div class="workload-container" id="chart-workload"></div>
+          </div>
+        </div>
+        <div class="stats-charts-row">
+          <div class="stats-chart-card" style="grid-column: span 2;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <h3 style="margin:0;">📅 <span data-i18n="chartTimeline">Charge dans le temps par agent</span></h3>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select id="timeline-period" onchange="renderTimelineChart()" style="padding:5px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+                  <option value="weeks">Par semaine (8 sem.)</option>
+                  <option value="months">Par mois (6 mois)</option>
+                </select>
+                <select id="timeline-agent" onchange="renderTimelineChart()" style="padding:5px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+                  <option value="">Tous les agents</option>
+                </select>
+              </div>
+            </div>
+            <div id="chart-timeline" style="overflow-x:auto;"></div>
           </div>
         </div>
         <div class="stats-summary">
