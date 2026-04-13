@@ -1600,6 +1600,7 @@ function renderCalendarView() {
     btn.classList.toggle('active', btn.getAttribute('data-mode') === calendarMode);
   });
 
+  if (window.innerWidth < 480 && calendarMode !== 'day') { renderCalendarMobileView(); return; }
   if (calendarMode === 'week') { renderCalendarWeekView(); return; }
   if (calendarMode === 'day') { renderCalendarDayView(); return; }
 
@@ -1889,6 +1890,11 @@ function renderCalendarWeekView() {
 }
 
 function calendarNav(dir) {
+  if (window.innerWidth < 480 && calendarMode !== 'day') {
+    calendarWeekOffset += dir;
+    renderCalendarView();
+    return;
+  }
   if (calendarMode === 'week') {
     calendarWeekOffset += dir;
   } else if (calendarMode === 'day') {
@@ -1900,6 +1906,67 @@ function calendarNav(dir) {
   }
   renderCalendarView();
 }
+
+function renderCalendarMobileView() {
+  var now = new Date();
+  var dayOfWeek = now.getDay();
+  var mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  var weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset + (calendarWeekOffset * 7));
+  var weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+
+  var monthNames = currentLang === 'fr'
+    ? ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var dayNames = currentLang === 'fr'
+    ? ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  var titleStart = weekStart.getDate() + ' ' + monthNames[weekStart.getMonth()];
+  var titleEnd = weekEnd.getDate() + ' ' + monthNames[weekEnd.getMonth()] + ' ' + weekEnd.getFullYear();
+  document.getElementById('calendar-month-title').textContent = titleStart + ' \u2013 ' + titleEnd;
+  document.getElementById('calendar-weekdays').innerHTML = '';
+
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var html = '';
+
+  for (var d = 0; d < 7; d++) {
+    var dayDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + d);
+    var isToday = dayDate.getTime() === today.getTime();
+    var isWeekend = d >= 5;
+    var dayTasks = getTasksForDate(dayDate);
+    var dateStr = dayDate.getFullYear() + '-' + String(dayDate.getMonth() + 1).padStart(2, '0') + '-' + String(dayDate.getDate()).padStart(2, '0');
+
+    var cls = 'calendar-day' + (isToday ? ' today' : '') + (isWeekend ? ' weekend' : '');
+    html += '<div class="' + cls + '" onclick="onCalendarDayClick(\'' + dateStr + '\')">';
+    html += '<div class="mobile-day-label">';
+    html += '<span class="mobile-day-name">' + dayNames[dayDate.getDay()] + '</span>';
+    html += '<div class="day-number">' + dayDate.getDate() + '</div>';
+    html += '</div>';
+    html += '<div class="day-tasks">';
+    for (var i = 0; i < dayTasks.length; i++) {
+      var task = dayTasks[i];
+      html += '<div class="day-task status-' + task.Status + '" onclick="event.stopPropagation(); openEditTaskModal(' + task.id + ')" title="' + sanitize(task.Title) + '">' + sanitize(task.Title) + '</div>';
+    }
+    if (dayTasks.length === 0) {
+      html += '<span class="mobile-no-task">\u2014</span>';
+    }
+    html += '</div></div>';
+  }
+
+  var daysContainer = document.getElementById('calendar-days');
+  daysContainer.innerHTML = html;
+  daysContainer.className = 'calendar-days calendar-mobile-list';
+}
+
+var _calResizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(_calResizeTimer);
+  _calResizeTimer = setTimeout(function() {
+    var calTab = document.getElementById('tab-calendar');
+    if (calTab && calTab.classList.contains('active')) renderCalendarView();
+  }, 200);
+});
 
 function renderCalendarDayView() {
   var today = new Date();

@@ -929,6 +929,78 @@
     body.dark-mode .day-task-title { color: #f1f5f9; }
     body.dark-mode .calendar-day-header { background: #1e293b; color: #94a3b8; }
 
+    /* ========== RESPONSIVE CALENDAR 768px ========== */
+    @media (max-width: 768px) {
+      .calendar-container { padding: 10px; }
+      .calendar-header h2 { font-size: 14px !important; min-width: 110px; }
+      .calendar-weekday { font-size: 9px; padding: 3px 0; }
+      .calendar-days { gap: 2px; }
+      .calendar-day { min-height: 50px; padding: 4px 3px; border-radius: 6px; }
+      .day-number { width: 18px; height: 18px; font-size: 10px; margin-bottom: 2px; }
+      .day-tasks { flex-direction: row; flex-wrap: wrap; gap: 2px; max-height: none; overflow: hidden; }
+      .day-task {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        padding: 0;
+        font-size: 0;
+        overflow: hidden;
+        flex-shrink: 0;
+        white-space: normal;
+      }
+      .day-more { display: none; }
+    }
+
+    /* ========== RESPONSIVE CALENDAR 480px — liste verticale ========== */
+    @media (max-width: 480px) {
+      .calendar-mobile-list {
+        display: flex !important;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .calendar-mobile-list .calendar-day {
+        display: flex;
+        align-items: flex-start;
+        min-height: 44px;
+        padding: 8px 10px;
+        gap: 10px;
+        border-radius: 8px;
+      }
+      .mobile-day-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 32px;
+        flex-shrink: 0;
+      }
+      .mobile-day-name {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-bottom: 2px;
+      }
+      .calendar-mobile-list .day-number { width: 24px; height: 24px; font-size: 12px; margin-bottom: 0; }
+      .calendar-mobile-list .day-tasks {
+        flex-direction: column;
+        flex: 1;
+        max-height: none;
+        overflow: visible;
+        gap: 3px;
+      }
+      .calendar-mobile-list .day-task {
+        width: auto; height: auto;
+        border-radius: 4px;
+        padding: 3px 7px;
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mobile-no-task { font-size: 12px; color: #cbd5e1; }
+      body.dark-mode .mobile-day-name { color: #475569; }
+      body.dark-mode .mobile-no-task { color: #334155; }
+    }
+
     /* ========== GANTT VIEW ========== */
     .gantt-controls {
       display: flex;
