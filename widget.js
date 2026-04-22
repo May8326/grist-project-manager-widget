@@ -1158,9 +1158,9 @@ async function ensureTables() {
             ['AddColumn', TASKS_TABLE, 'Estimated_Hours', { type: 'Numeric' }]
           ]);
         }
-        if (existingCols.indexOf('Tags') === -1) {
+        if (existingCols.indexOf('Tag') === -1) {
           await grist.docApi.applyUserActions([
-            ['AddColumn', TASKS_TABLE, 'Tags', { type: 'Text' }]
+            ['AddColumn', TASKS_TABLE, 'Tag', { type: 'Text' }]
           ]);
         }
         if (existingCols.indexOf('Project_Id') === -1) {
