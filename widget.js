@@ -1580,10 +1580,11 @@ function refreshAllViews() {
 // =============================================================================
 
 function updateStats() {
-  var total = tasks.length;
-  var todo = tasks.filter(function(t) { return t.Status === 'todo'; }).length;
-  var progress = tasks.filter(function(t) { return t.Status === 'progress'; }).length;
-  var done = tasks.filter(function(t) { return t.Status === 'done'; }).length;
+  var filteredTasks = getFilteredTasks();
+  var total = filteredTasks.length;
+  var todo = filteredTasks.filter(function(t) { return t.Status === 'todo'; }).length;
+  var progress = filteredTasks.filter(function(t) { return t.Status === 'progress'; }).length;
+  var done = filteredTasks.filter(function(t) { return t.Status === 'done'; }).length;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-todo').textContent = todo;
   document.getElementById('stat-progress').textContent = progress;
@@ -1823,7 +1824,7 @@ function getTasksForDate(date) {
   var dateTs = dateStart.getTime() / 1000;
   var dateEndTs = dateEnd.getTime() / 1000;
 
-  return tasks.filter(function(task) {
+  return getFilteredTasks().filter(function(task) {
     var taskStart = task.Start_Date;
     var taskEnd = task.Due_Date;
     if (!taskStart && !taskEnd) return false;
@@ -2111,9 +2112,10 @@ function renderKanbanView() {
   ];
 
   var html = '';
+  var filteredTasks = getFilteredTasks();
   for (var s = 0; s < statuses.length; s++) {
     var st = statuses[s];
-    var colTasks = tasks.filter(function(task) { return task.Status === st.key; });
+    var colTasks = filteredTasks.filter(function(task) { return task.Status === st.key; });
 
     html += '<div class="kanban-column ' + st.cssClass + '">';
     html += '<div class="kanban-col-header">';
@@ -2266,7 +2268,7 @@ function renderTableView() {
   var filterStatus = document.getElementById('filter-status').value;
   var filterPriority = document.getElementById('filter-priority').value;
 
-  var filtered = tasks.filter(function(task) {
+  var filtered = getFilteredTasks().filter(function(task) {
     if (filterStatus && task.Status !== filterStatus) return false;
     if (filterPriority && task.Priority !== filterPriority) return false;
     if (search) {
@@ -2456,7 +2458,7 @@ function renderGanttView() {
     btn.classList.toggle('active', btn.getAttribute('data-gantt-mode') === ganttMode);
   });
 
-  var tasksWithDates = tasks.filter(function(task) { return task.Start_Date || task.Due_Date; });
+  var tasksWithDates = getFilteredTasks().filter(function(task) { return task.Start_Date || task.Due_Date; });
   document.getElementById('gantt-task-count').textContent = '(' + tasksWithDates.length + ' ' + (currentLang === 'fr' ? 'tâches' : 'tasks') + ')';
 
   var today = new Date();
@@ -3569,8 +3571,8 @@ function openEditTaskModal(taskId, preserveAssignees) {
   html += '<div class="dep-add-row">';
   html += '<select id="dep-select">';
   html += '<option value="">-- ' + t('selectTask') + ' --</option>';
-  var availableTasks = tasks.filter(function(t) { 
-    return t.id !== task.id && !taskDeps.some(function(d) { return d.id === t.id; }); 
+  var availableTasks = getFilteredTasks().filter(function(t) {
+    return t.id !== task.id && !taskDeps.some(function(d) { return d.id === t.id; });
   });
   for (var ti = 0; ti < availableTasks.length; ti++) {
     html += '<option value="' + availableTasks[ti].id + '">' + sanitize(availableTasks[ti].Title) + '</option>';
@@ -4630,9 +4632,10 @@ function applyOwnerRestrictions() {
 // =============================================================================
 
 function renderStatsView() {
+  var filteredTasks = getFilteredTasks();
   // Status chart
   var statusCounts = { todo: 0, progress: 0, done: 0 };
-  tasks.forEach(function(t) { statusCounts[t.Status] = (statusCounts[t.Status] || 0) + 1; });
+  filteredTasks.forEach(function(t) { statusCounts[t.Status] = (statusCounts[t.Status] || 0) + 1; });
   var maxStatus = Math.max(statusCounts.todo, statusCounts.progress, statusCounts.done, 1);
   
   var statusHtml = '';
@@ -4650,7 +4653,7 @@ function renderStatsView() {
 
   // Priority chart
   var priorityCounts = { high: 0, medium: 0, low: 0 };
-  tasks.forEach(function(t) { priorityCounts[t.Priority] = (priorityCounts[t.Priority] || 0) + 1; });
+  filteredTasks.forEach(function(t) { priorityCounts[t.Priority] = (priorityCounts[t.Priority] || 0) + 1; });
   var maxPriority = Math.max(priorityCounts.high, priorityCounts.medium, priorityCounts.low, 1);
   
   var priorityHtml = '';
@@ -4668,7 +4671,7 @@ function renderStatsView() {
 
   // Assignee chart
   var assigneeCounts = {};
-  tasks.forEach(function(t) {
+  filteredTasks.forEach(function(t) {
     if (t.Assignee) {
       t.Assignee.split(',').forEach(function(a) {
         var name = getUserDisplayName(a.trim());
@@ -4702,7 +4705,7 @@ function renderStatsView() {
   var weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
   
   var weekCounts = [0, 0, 0, 0, 0, 0, 0];
-  tasks.forEach(function(task) {
+  filteredTasks.forEach(function(task) {
     if (task.Due_Date) {
       var dueDate = new Date(task.Due_Date * 1000);
       for (var d = 0; d < 7; d++) {
@@ -4728,7 +4731,7 @@ function renderStatsView() {
   document.getElementById('chart-week').innerHTML = weekHtml;
 
   // Summary stats
-  var completionRate = tasks.length > 0 ? Math.round((statusCounts.done / tasks.length) * 100) : 0;
+  var completionRate = filteredTasks.length > 0 ? Math.round((statusCounts.done / filteredTasks.length) * 100) : 0;
   document.getElementById('stats-completion-rate').textContent = completionRate + '%';
   
   var overdueCount = getOverdueTasks().length;
@@ -4742,7 +4745,7 @@ function renderStatsView() {
   var totalHours = Math.round(totalMinutes / 60);
   document.getElementById('stats-total-time').textContent = totalHours + 'h';
   
-  var avgMinutes = tasks.length > 0 ? Math.round(totalMinutes / tasks.length) : 0;
+  var avgMinutes = filteredTasks.length > 0 ? Math.round(totalMinutes / filteredTasks.length) : 0;
   var avgHours = Math.round(avgMinutes / 60 * 10) / 10;
   document.getElementById('stats-avg-time').textContent = avgHours + 'h';
 
@@ -4753,9 +4756,10 @@ function renderStatsView() {
 function renderWorkloadChart() {
   var workloadData = {};
   var now = Math.floor(Date.now() / 1000);
+  var filteredTasks = getFilteredTasks();
   
   // Calculate workload for each assignee
-  tasks.forEach(function(task) {
+  filteredTasks.forEach(function(task) {
     if (task.Assignee && task.Status !== 'done') {
       task.Assignee.split(',').forEach(function(a) {
         var email = a.trim();
@@ -4971,8 +4975,9 @@ function renderProjectList() {
     html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + t('noProject') + '</div>';
   } else {
     html = '<div class="project-items">';
+    var filteredTasks = getFilteredTasks();
     projects.forEach(function(proj) {
-      var taskCount = tasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
+      var taskCount = filteredTasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
       html += '<div class="project-item" style="border-left: 4px solid ' + (proj.Color || '#6366f1') + ';">';
       html += '<div class="project-item-info">';
       html += '<strong>' + sanitize(proj.Name) + '</strong>';
@@ -5083,8 +5088,9 @@ function renderSettingsProjectsList() {
     html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + t('noProject') + '</div>';
   } else {
     html = '<div class="settings-items">';
+    var filteredTasks = getFilteredTasks();
     projects.forEach(function(proj) {
-      var taskCount = tasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
+      var taskCount = filteredTasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
       html += '<div class="settings-item" style="border-left: 4px solid ' + (proj.Color || '#6366f1') + ';">';
       html += '<div class="settings-item-info">';
       html += '<strong>' + sanitize(proj.Name) + '</strong>';
@@ -5531,7 +5537,7 @@ async function deleteTag(tagId) {
 
 function getOverdueTasks() {
   var now = Math.floor(Date.now() / 1000);
-  return tasks.filter(function(t) {
+  return getFilteredTasks().filter(function(t) {
     return t.Due_Date && t.Due_Date < now && t.Status !== 'done';
   });
 }
@@ -5539,7 +5545,7 @@ function getOverdueTasks() {
 function getUpcomingTasks() {
   var now = Math.floor(Date.now() / 1000);
   var threeDays = now + (3 * 24 * 60 * 60);
-  return tasks.filter(function(t) {
+  return getFilteredTasks().filter(function(t) {
     return t.Due_Date && t.Due_Date >= now && t.Due_Date <= threeDays && t.Status !== 'done';
   });
 }
@@ -5632,7 +5638,7 @@ function globalSearch(query) {
   }
   
   var q = query.toLowerCase();
-  var results = tasks.filter(function(t) {
+  var results = getFilteredTasks().filter(function(t) {
     return (t.Title && t.Title.toLowerCase().indexOf(q) !== -1) ||
            (t.Description && t.Description.toLowerCase().indexOf(q) !== -1) ||
            (t.Category && t.Category.toLowerCase().indexOf(q) !== -1);
