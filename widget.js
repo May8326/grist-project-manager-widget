@@ -1545,7 +1545,8 @@ function filterByProject(projectId) {
 
 function getFilteredTasks() {
   if (!currentProjectId) return tasks;
-  return tasks.filter(function(t) { return t.Project_Id === currentProjectId; });
+  var cpid = Number(currentProjectId);
+  return tasks.filter(function(t) { return Number(t.Project_Id) === cpid; });
 }
 
 function getProjectName(projectId) {
