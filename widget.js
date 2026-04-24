@@ -621,35 +621,32 @@ async function loadColumnMapping() {
       var tableName = configData.Table_Name[i];
       var columnName = configData.Column_Name[i];
       
+      // Convertit un suffixe snake_case vers camelCase (ex. start_date -> startDate)
+      var toCamel = function(s) { return s.replace(/_([a-z])/g, function(_, c) { return c.toUpperCase(); }); };
+
       // Parse key to determine which mapping to update
       if (key.startsWith('task_')) {
-        var field = key.replace('task_', '').replace(/_/g, '');
-        // Convert snake_case to camelCase
-        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        var field = toCamel(key.slice(5));
         if (columnMapping.tasks[field] !== undefined) {
           columnMapping.tasks[field] = columnName;
         }
       } else if (key.startsWith('user_')) {
-        var field = key.replace('user_', '').replace(/_/g, '');
-        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        var field = toCamel(key.slice(5));
         if (columnMapping.users[field] !== undefined) {
           columnMapping.users[field] = columnName;
         }
       } else if (key.startsWith('project_')) {
-        var field = key.replace('project_', '').replace(/_/g, '');
-        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        var field = toCamel(key.slice(8));
         if (columnMapping.projects[field] !== undefined) {
           columnMapping.projects[field] = columnName;
         }
       } else if (key.startsWith('category_')) {
-        var field = key.replace('category_', '').replace(/_/g, '');
-        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        var field = toCamel(key.slice(9));
         if (columnMapping.categories[field] !== undefined) {
           columnMapping.categories[field] = columnName;
         }
       } else if (key.startsWith('tag_')) {
-        var field = key.replace('tag_', '').replace(/_/g, '');
-        field = field.replace(/_([a-z])/g, function(g) { return g[1].toUpperCase(); });
+        var field = toCamel(key.slice(4));
         if (columnMapping.tags[field] !== undefined) {
           columnMapping.tags[field] = columnName;
         }
@@ -5265,7 +5262,11 @@ async function detectTaskColumns() {
       { key: 'startDate', label: 'Date début', required: false },
       { key: 'dueDate', label: 'Échéance', required: false },
       { key: 'category', label: 'Catégorie', required: false },
-      { key: 'tag', label: 'Tag', required: false }
+      { key: 'tag', label: 'Tag', required: false },
+      { key: 'recurrence', label: 'Récurrence', required: false },
+      { key: 'estimatedHours', label: 'Heures estimées', required: false },
+      { key: 'createdAt', label: 'Créé le', required: false },
+      { key: 'projectId', label: 'Projet', required: false }
     ];
     
     for (var i = 0; i < fields.length; i++) {
@@ -5371,7 +5372,7 @@ async function saveColumnMapping() {
     
     // Tasks mappings
     var tasksTable = document.getElementById('mapping-tasks-table').value;
-    var taskFields = ['title', 'description', 'status', 'priority', 'assignee', 'group', 'startDate', 'dueDate', 'category', 'tag'];
+    var taskFields = ['title', 'description', 'status', 'priority', 'assignee', 'group', 'startDate', 'dueDate', 'category', 'tag', 'recurrence', 'estimatedHours', 'createdAt', 'projectId'];
     for (var i = 0; i < taskFields.length; i++) {
       var field = taskFields[i];
       var el = document.getElementById('map-task-' + field);
@@ -5405,29 +5406,34 @@ async function saveColumnMapping() {
       }
     }
     
-    // Update PM_Config table
+    // Update PM_Config table (update existing, add missing)
     var configData = await grist.docApi.fetchTable(CONFIG_TABLE);
+    var actions = [];
     for (var i = 0; i < updates.length; i++) {
       var update = updates[i];
       var recordId = null;
-      
-      // Find existing record
+
       for (var j = 0; j < configData.Config_Key.length; j++) {
         if (configData.Config_Key[j] === update.key) {
           recordId = configData.id[j];
           break;
         }
       }
-      
+
       if (recordId) {
-        await grist.docApi.applyUserActions([
-          ['UpdateRecord', CONFIG_TABLE, recordId, {
-            Table_Name: update.table,
-            Column_Name: update.column
-          }]
-        ]);
+        actions.push(['UpdateRecord', CONFIG_TABLE, recordId, {
+          Table_Name: update.table,
+          Column_Name: update.column
+        }]);
+      } else {
+        actions.push(['AddRecord', CONFIG_TABLE, null, {
+          Config_Key: update.key,
+          Table_Name: update.table,
+          Column_Name: update.column
+        }]);
       }
     }
+    if (actions.length > 0) await grist.docApi.applyUserActions(actions);
     
     showToast('✓ Configuration sauvegardée', 'success');
     closeModalForce();
