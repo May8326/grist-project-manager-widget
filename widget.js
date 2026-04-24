@@ -1522,7 +1522,9 @@ function renderProjectSelector() {
       var list = (t.Assignee || '').split(',').map(function(s) { return s.trim(); });
       if (list.indexOf(currentFilterAssignee) !== -1) projIdSet[t.Project_Id] = true;
     });
-    visibleProjects = projects.filter(function(p) { return projIdSet[p.id]; });
+    // Si aucune tâche associée, on laisse tous les projets (sinon UX bloquée)
+    var filtered = projects.filter(function(p) { return projIdSet[p.id]; });
+    if (filtered.length > 0) visibleProjects = filtered;
   }
 
   var html = '';
@@ -1535,12 +1537,14 @@ function renderProjectSelector() {
   });
   html += '</select>';
 
-  // Filtre Personne
+  // Filtre Personne — la valeur correspond à celle stockée dans task.Assignee (Email || Name)
   html += '<select id="assignee-filter" class="cascade-select' + (currentFilterAssignee ? ' cascade-active' : '') + '" onchange="filterByAssignee(this.value)" title="Personne">';
   html += '<option value="">' + (currentLang === 'fr' ? '— Personne —' : '— Person —') + '</option>';
   visibleUsers.forEach(function(u) {
-    if (!u.Name) return;
-    html += '<option value="' + sanitize(u.Name) + '"' + (currentFilterAssignee === u.Name ? ' selected' : '') + '>' + sanitize(u.Name) + '</option>';
+    var val = u.Email || u.Name;
+    var label = u.Name || u.Email;
+    if (!val) return;
+    html += '<option value="' + sanitize(val) + '"' + (currentFilterAssignee === val ? ' selected' : '') + '>' + sanitize(label) + '</option>';
   });
   html += '</select>';
 
@@ -1579,7 +1583,11 @@ function renderProjectSelector() {
     var c2 = (proj2 && proj2.Color) ? proj2.Color : '#6366f1';
     var bits = [];
     if (currentFilterRole) bits.push('👔 ' + sanitize(currentFilterRole));
-    if (currentFilterAssignee) bits.push('👤 ' + sanitize(currentFilterAssignee));
+    if (currentFilterAssignee) {
+      var u = users.find(function(x) { return (x.Email || x.Name) === currentFilterAssignee; });
+      var displayName = u ? (u.Name || u.Email) : currentFilterAssignee;
+      bits.push('👤 ' + sanitize(displayName));
+    }
     if (proj2) bits.push('🎯 ' + sanitize(proj2.Name));
     banner.innerHTML = (currentLang === 'fr' ? 'Filtres actifs : ' : 'Active filters: ') + '<strong>' + bits.join(' › ') + '</strong> — <a href="#" onclick="resetFilters();return false;" style="color:inherit;text-decoration:underline;">' + (currentLang === 'fr' ? 'Tout effacer' : 'Clear all') + '</a>';
     banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 16px;background:' + c2 + '15;border-bottom:2px solid' + c2 + ';color:' + c2 + ';font-size:12px;font-weight:600;';
@@ -1599,7 +1607,10 @@ function filterByRole(role) {
   currentFilterRole = role || null;
   // Si la personne sélectionnée n'a plus le rôle, la déselectionner
   if (currentFilterRole && currentFilterAssignee) {
-    var stillValid = users.some(function(u) { return u.Name === currentFilterAssignee && u.Role === currentFilterRole; });
+    var stillValid = users.some(function(u) {
+      var val = u.Email || u.Name;
+      return val === currentFilterAssignee && u.Role === currentFilterRole;
+    });
     if (!stillValid) {
       currentFilterAssignee = null;
       currentProjectId = null;
@@ -1636,10 +1647,13 @@ function resetFilters() {
 function getFilteredTasks() {
   var result = tasks;
   if (currentFilterRole) {
-    var roleNames = users.filter(function(u) { return u.Role === currentFilterRole; }).map(function(u) { return u.Name; });
+    // Identifiants attendus dans task.Assignee : Email en priorité, sinon Name
+    var roleIds = users
+      .filter(function(u) { return u.Role === currentFilterRole; })
+      .map(function(u) { return u.Email || u.Name; });
     result = result.filter(function(t) {
       var list = (t.Assignee || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-      return list.some(function(a) { return roleNames.indexOf(a) !== -1; });
+      return list.some(function(a) { return roleIds.indexOf(a) !== -1; });
     });
   }
   if (currentFilterAssignee) {
