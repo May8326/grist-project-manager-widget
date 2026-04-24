@@ -513,6 +513,8 @@ var categories = [];
 var tags = [];
 var projects = [];
 var currentProjectId = null; // null = all projects
+var currentFilterRole = null;
+var currentFilterAssignee = null; // user Name
 var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
@@ -1501,22 +1503,70 @@ function renderProjectSelector() {
   var container = document.getElementById('project-selector');
   if (!container) return;
 
-  var html = '<select id="project-filter" onchange="filterByProject(this.value)" class="' + (currentProjectId ? 'project-filter-active' : '') + '">';
+  // Rôles disponibles (distincts, triés)
+  var roleSet = {};
+  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
+  var roles = Object.keys(roleSet).sort();
+
+  // Personnes visibles selon le rôle sélectionné
+  var visibleUsers = currentFilterRole
+    ? users.filter(function(u) { return u.Role === currentFilterRole; })
+    : users;
+
+  // Projets visibles : si un assigné est choisi, uniquement ceux où il a des tâches
+  var visibleProjects = projects;
+  if (currentFilterAssignee) {
+    var projIdSet = {};
+    tasks.forEach(function(t) {
+      if (!t.Project_Id) return;
+      var list = (t.Assignee || '').split(',').map(function(s) { return s.trim(); });
+      if (list.indexOf(currentFilterAssignee) !== -1) projIdSet[t.Project_Id] = true;
+    });
+    visibleProjects = projects.filter(function(p) { return projIdSet[p.id]; });
+  }
+
+  var html = '';
+
+  // Filtre Rôle
+  html += '<select id="role-filter" class="cascade-select' + (currentFilterRole ? ' cascade-active' : '') + '" onchange="filterByRole(this.value)" title="Rôle">';
+  html += '<option value="">' + (currentLang === 'fr' ? '— Rôle —' : '— Role —') + '</option>';
+  roles.forEach(function(r) {
+    html += '<option value="' + sanitize(r) + '"' + (currentFilterRole === r ? ' selected' : '') + '>' + sanitize(r) + '</option>';
+  });
+  html += '</select>';
+
+  // Filtre Personne
+  html += '<select id="assignee-filter" class="cascade-select' + (currentFilterAssignee ? ' cascade-active' : '') + '" onchange="filterByAssignee(this.value)" title="Personne">';
+  html += '<option value="">' + (currentLang === 'fr' ? '— Personne —' : '— Person —') + '</option>';
+  visibleUsers.forEach(function(u) {
+    if (!u.Name) return;
+    html += '<option value="' + sanitize(u.Name) + '"' + (currentFilterAssignee === u.Name ? ' selected' : '') + '>' + sanitize(u.Name) + '</option>';
+  });
+  html += '</select>';
+
+  // Filtre Projet
+  html += '<select id="project-filter" onchange="filterByProject(this.value)" class="' + (currentProjectId ? 'project-filter-active' : '') + '">';
   html += '<option value="">' + t('allProjects') + '</option>';
-  projects.forEach(function(proj) {
+  visibleProjects.forEach(function(proj) {
     var selected = currentProjectId === proj.id ? ' selected' : '';
     html += '<option value="' + proj.id + '"' + selected + '>' + sanitize(proj.Name) + '</option>';
   });
   html += '</select>';
+
   if (currentProjectId) {
     var proj = projects.find(function(p) { return p.id === currentProjectId; });
     var color = (proj && proj.Color) ? proj.Color : '#6366f1';
     html += '<span class="project-active-badge" style="background:' + color + '20;color:' + color + ';border-color:' + color + '40;">🎯 ' + sanitize(proj ? proj.Name : '') + '</span>';
   }
+
+  if (currentFilterRole || currentFilterAssignee || currentProjectId) {
+    html += '<button class="btn-icon" onclick="resetFilters()" title="' + (currentLang === 'fr' ? 'Réinitialiser les filtres' : 'Reset filters') + '">✕</button>';
+  }
+
   html += '<button class="btn-icon" onclick="openProjectModal()" title="' + t('manageProjects') + '">⚙️</button>';
   container.innerHTML = html;
 
-  // Bandeau de filtre actif en haut de page
+  // Bandeau de filtre actif en haut de page (affiche tous les filtres en cascade)
   var banner = document.getElementById('project-filter-banner');
   if (!banner) {
     banner = document.createElement('div');
@@ -1524,10 +1574,14 @@ function renderProjectSelector() {
     var appEl = document.querySelector('.app-container') || document.body;
     appEl.insertBefore(banner, appEl.firstChild);
   }
-  if (currentProjectId) {
-    var proj2 = projects.find(function(p) { return p.id === currentProjectId; });
+  if (currentFilterRole || currentFilterAssignee || currentProjectId) {
+    var proj2 = currentProjectId ? projects.find(function(p) { return p.id === currentProjectId; }) : null;
     var c2 = (proj2 && proj2.Color) ? proj2.Color : '#6366f1';
-    banner.innerHTML = '🎯 Filtre actif : <strong>' + sanitize(proj2 ? proj2.Name : '') + '</strong> — <a href="#" onclick="filterByProject(\'\');return false;" style="color:inherit;text-decoration:underline;">Voir tous les projets</a>';
+    var bits = [];
+    if (currentFilterRole) bits.push('👔 ' + sanitize(currentFilterRole));
+    if (currentFilterAssignee) bits.push('👤 ' + sanitize(currentFilterAssignee));
+    if (proj2) bits.push('🎯 ' + sanitize(proj2.Name));
+    banner.innerHTML = (currentLang === 'fr' ? 'Filtres actifs : ' : 'Active filters: ') + '<strong>' + bits.join(' › ') + '</strong> — <a href="#" onclick="resetFilters();return false;" style="color:inherit;text-decoration:underline;">' + (currentLang === 'fr' ? 'Tout effacer' : 'Clear all') + '</a>';
     banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 16px;background:' + c2 + '15;border-bottom:2px solid' + c2 + ';color:' + c2 + ';font-size:12px;font-weight:600;';
   } else {
     banner.style.display = 'none';
@@ -1537,13 +1591,68 @@ function renderProjectSelector() {
 function filterByProject(projectId) {
   currentProjectId = projectId ? parseInt(projectId) : null;
   localStorage.setItem('pm-current-project', currentProjectId || '');
+  renderProjectSelector();
+  refreshAllViews();
+}
+
+function filterByRole(role) {
+  currentFilterRole = role || null;
+  // Si la personne sélectionnée n'a plus le rôle, la déselectionner
+  if (currentFilterRole && currentFilterAssignee) {
+    var stillValid = users.some(function(u) { return u.Name === currentFilterAssignee && u.Role === currentFilterRole; });
+    if (!stillValid) {
+      currentFilterAssignee = null;
+      currentProjectId = null;
+    }
+  }
+  renderProjectSelector();
+  refreshAllViews();
+}
+
+function filterByAssignee(name) {
+  currentFilterAssignee = name || null;
+  // Si le projet sélectionné n'a plus de tâches pour cette personne, le déselectionner
+  if (currentFilterAssignee && currentProjectId) {
+    var match = tasks.some(function(t) {
+      if (Number(t.Project_Id) !== Number(currentProjectId)) return false;
+      var list = (t.Assignee || '').split(',').map(function(s) { return s.trim(); });
+      return list.indexOf(currentFilterAssignee) !== -1;
+    });
+    if (!match) currentProjectId = null;
+  }
+  renderProjectSelector();
+  refreshAllViews();
+}
+
+function resetFilters() {
+  currentFilterRole = null;
+  currentFilterAssignee = null;
+  currentProjectId = null;
+  localStorage.setItem('pm-current-project', '');
+  renderProjectSelector();
   refreshAllViews();
 }
 
 function getFilteredTasks() {
-  if (!currentProjectId) return tasks;
-  var cpid = Number(currentProjectId);
-  return tasks.filter(function(t) { return Number(t.Project_Id) === cpid; });
+  var result = tasks;
+  if (currentFilterRole) {
+    var roleNames = users.filter(function(u) { return u.Role === currentFilterRole; }).map(function(u) { return u.Name; });
+    result = result.filter(function(t) {
+      var list = (t.Assignee || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+      return list.some(function(a) { return roleNames.indexOf(a) !== -1; });
+    });
+  }
+  if (currentFilterAssignee) {
+    result = result.filter(function(t) {
+      var list = (t.Assignee || '').split(',').map(function(s) { return s.trim(); });
+      return list.indexOf(currentFilterAssignee) !== -1;
+    });
+  }
+  if (currentProjectId) {
+    var cpid = Number(currentProjectId);
+    result = result.filter(function(t) { return Number(t.Project_Id) === cpid; });
+  }
+  return result;
 }
 
 function getProjectName(projectId) {
