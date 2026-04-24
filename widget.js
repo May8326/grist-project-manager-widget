@@ -1499,6 +1499,13 @@ async function loadAllData() {
   refreshAllViews();
 }
 
+function roleLabel(role) {
+  if (role === 'admin') return t('roleAdmin');
+  if (role === 'viewer') return t('roleViewer');
+  if (role === 'member') return t('roleMember');
+  return role; // rôle personnalisé : affiché tel quel
+}
+
 function renderProjectSelector() {
   var container = document.getElementById('project-selector');
   if (!container) return;
@@ -1529,11 +1536,11 @@ function renderProjectSelector() {
 
   var html = '';
 
-  // Filtre Rôle
+  // Filtre Rôle — libellé localisé pour les rôles standards (admin/member/viewer)
   html += '<select id="role-filter" class="cascade-select' + (currentFilterRole ? ' cascade-active' : '') + '" onchange="filterByRole(this.value)" title="Rôle">';
   html += '<option value="">' + (currentLang === 'fr' ? '— Rôle —' : '— Role —') + '</option>';
   roles.forEach(function(r) {
-    html += '<option value="' + sanitize(r) + '"' + (currentFilterRole === r ? ' selected' : '') + '>' + sanitize(r) + '</option>';
+    html += '<option value="' + sanitize(r) + '"' + (currentFilterRole === r ? ' selected' : '') + '>' + sanitize(roleLabel(r)) + '</option>';
   });
   html += '</select>';
 
@@ -1582,7 +1589,7 @@ function renderProjectSelector() {
     var proj2 = currentProjectId ? projects.find(function(p) { return p.id === currentProjectId; }) : null;
     var c2 = (proj2 && proj2.Color) ? proj2.Color : '#6366f1';
     var bits = [];
-    if (currentFilterRole) bits.push('👔 ' + sanitize(currentFilterRole));
+    if (currentFilterRole) bits.push('👔 ' + sanitize(roleLabel(currentFilterRole)));
     if (currentFilterAssignee) {
       var u = users.find(function(x) { return (x.Email || x.Name) === currentFilterAssignee; });
       var displayName = u ? (u.Name || u.Email) : currentFilterAssignee;
