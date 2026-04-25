@@ -2923,13 +2923,13 @@ function renderUsersList() {
 
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
-    var roleLabel = roleLabel(u.Role);
+    var roleText = roleLabel(u.Role);
     var roleBg = u.Role === 'admin' ? '#fef2f2;color:#dc2626' : (u.Role === 'viewer' ? '#f1f5f9;color:#64748b' : '#eff6ff;color:#1e40af');
 
     html += '<tr>';
     html += '<td style="font-weight:700;">👤 ' + sanitize(u.Name) + '</td>';
     html += '<td>' + sanitize(u.Email) + '</td>';
-    html += '<td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:' + roleBg + '">' + roleLabel + '</span></td>';
+    html += '<td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:' + roleBg + '">' + sanitize(roleText) + '</span></td>';
     html += '<td>' + (u.Group_Name ? '<span class="assignee-chip">👥 ' + sanitize(u.Group_Name) + '</span>' : '--') + '</td>';
     html += '<td><button class="btn-icon" onclick="openEditUserModal(' + u.id + ')" title="' + t('edit') + '">✏️</button>';
     html += '<button class="btn-icon" onclick="deleteUser(' + u.id + ')">🗑️</button></td>';
