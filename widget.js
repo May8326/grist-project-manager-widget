@@ -2894,7 +2894,7 @@ function renderGanttView() {
 
     var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
     html += '<tr>';
-    html += '<td class="gantt-task-label">';
+    html += '<td class="gantt-task-label gantt-clickable-label" onclick="openEditTaskModal(' + task.id + ')">';
     html += '<div class="task-name">' + ganttChevron(task) + '<span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
     html += '<div class="task-info">';
     if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
