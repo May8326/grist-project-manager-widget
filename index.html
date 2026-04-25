@@ -339,7 +339,23 @@
     .btn-primary { background: #ef4444; color: white; }
     .btn-primary:hover:not(:disabled) { background: #dc2626; }
     .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-    .btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
+    .btn-secondary:hover:not(:disabled) { background: #e2e8f0; color: #1e293b; }
+    body.dark-mode .btn-secondary {
+      background: #1e293b; color: #cbd5e1; border-color: #334155;
+    }
+    body.dark-mode .btn-secondary:hover:not(:disabled) {
+      background: #334155; color: #f1f5f9;
+    }
+    /* Boutons de mode Gantt : actif clairement signalé en rouge */
+    [data-gantt-mode].active {
+      background: #ef4444 !important;
+      color: white !important;
+      border-color: #ef4444 !important;
+    }
+    [data-gantt-mode].active:hover:not(:disabled) {
+      background: #dc2626 !important;
+      color: white !important;
+    }
     .btn-sm { padding: 4px 10px; font-size: 11px; }
     .btn-icon {
       width: 30px; height: 30px; padding: 0;
@@ -3501,7 +3517,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=25"></script>
+  <script src="widget.js?v=26"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>
