@@ -2923,7 +2923,7 @@ function renderUsersList() {
 
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
-    var roleLabel = u.Role === 'admin' ? t('roleAdmin') : (u.Role === 'viewer' ? t('roleViewer') : t('roleMember'));
+    var roleLabel = roleLabel(u.Role);
     var roleBg = u.Role === 'admin' ? '#fef2f2;color:#dc2626' : (u.Role === 'viewer' ? '#f1f5f9;color:#64748b' : '#eff6ff;color:#1e40af');
 
     html += '<tr>';
