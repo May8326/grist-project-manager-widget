@@ -2595,9 +2595,9 @@ function getGanttSubtasks(taskId) {
   return getTaskSubtasks(taskId).filter(function(st) { return st.Due_Date; });
 }
 
-// Construit la <td> de libellé d'une sous-tâche (indentée, allégée)
-function renderGanttSubtaskLabelCell(st) {
-  var html = '<td class="gantt-task-label gantt-subtask-cell">';
+// Construit la <td> de libellé d'une sous-tâche (indentée, allégée, cliquable)
+function renderGanttSubtaskLabelCell(st, parentTaskId) {
+  var html = '<td class="gantt-task-label gantt-subtask-cell gantt-clickable-label" onclick="openEditTaskModal(' + parentTaskId + ')">';
   html += '<div class="gantt-subtask-name">↳ ' + sanitize(st.Title) + '</div>';
   html += '<div class="gantt-subtask-info">⏰ ' + formatDate(st.Due_Date);
   if (st.Assignee) html += ' · 👤 ' + sanitize(st.Assignee).substring(0, 15);
@@ -2706,7 +2706,7 @@ function renderGanttView() {
 
       var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
       html += '<tr>';
-      html += '<td class="gantt-task-label">';
+      html += '<td class="gantt-task-label gantt-clickable-label" onclick="openEditTaskModal(' + task.id + ')">';
       html += '<div class="task-name">' + ganttChevron(task) + '<span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
       html += '<div class="task-info">';
       if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
@@ -2751,7 +2751,7 @@ function renderGanttView() {
           var st = sts[sti];
           var stRange = getGanttSubtaskRange(st, task);
           var stBarClass = ganttSubtaskBarClass(st, task);
-          html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st);
+          html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st, task.id);
           var stStartIdx = -1, stEndIdx = -1;
           for (var wi2 = 0; wi2 < weeks.length; wi2++) {
             if (stRange.start <= weeks[wi2].end && stRange.end >= weeks[wi2].start) {
@@ -2806,7 +2806,7 @@ function renderGanttView() {
 
       var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
       html += '<tr>';
-      html += '<td class="gantt-task-label">';
+      html += '<td class="gantt-task-label gantt-clickable-label" onclick="openEditTaskModal(' + task.id + ')">';
       html += '<div class="task-name">' + ganttChevron(task) + '<span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
       html += '<div class="task-info">';
       if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
@@ -2838,7 +2838,7 @@ function renderGanttView() {
           var st = sts[sti];
           var stRange = getGanttSubtaskRange(st, task);
           var stBarClass = ganttSubtaskBarClass(st, task);
-          html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st);
+          html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st, task.id);
           for (var m2 = 0; m2 < 12; m2++) {
             var mStart = new Date(ganttYear, m2, 1);
             var mEnd = new Date(ganttYear, m2 + 1, 0);
@@ -2935,7 +2935,7 @@ function renderGanttView() {
         var stStartDay = new Date(stRange.start); stStartDay.setHours(0, 0, 0, 0);
         var stEndDay = new Date(stRange.end); stEndDay.setHours(0, 0, 0, 0);
         var stBarClass = ganttSubtaskBarClass(st, task);
-        html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st);
+        html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st, task.id);
         for (var di2 = 0; di2 < days.length; di2++) {
           var dd2 = days[di2];
           var isToday2 = dd2.getTime() === today.getTime();

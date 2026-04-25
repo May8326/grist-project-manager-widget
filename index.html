@@ -1121,6 +1121,15 @@
     .gantt-bar-done { background: linear-gradient(135deg, #22c55e, #4ade80); }
     .gantt-bar-overdue { background: linear-gradient(135deg, #ef4444, #f87171); }
 
+    /* Libellé de tâche cliquable (ouvre la modale) */
+    .gantt-clickable-label { cursor: pointer; transition: background 0.15s; }
+    .gantt-clickable-label:hover { background: #fef2f2; }
+    .gantt-clickable-label:hover .task-name,
+    .gantt-clickable-label:hover .gantt-subtask-name { color: #ef4444; text-decoration: underline; }
+    body.dark-mode .gantt-clickable-label:hover { background: #1e293b; }
+    body.dark-mode .gantt-clickable-label:hover .task-name,
+    body.dark-mode .gantt-clickable-label:hover .gantt-subtask-name { color: #fca5a5; }
+
     /* Sous-tâches dans le Gantt */
     .gantt-toggle {
       display: inline-flex; align-items: center; justify-content: center;
@@ -3492,7 +3501,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=23"></script>
+  <script src="widget.js?v=24"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>
