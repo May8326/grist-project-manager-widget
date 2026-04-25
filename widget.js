@@ -535,6 +535,7 @@ var activeTimers = {}; // taskId -> startTime (for running timers)
 var ganttMode = 'days';
 var ganttYear = new Date().getFullYear();
 var ganttMonth = new Date().getMonth();
+var expandedGanttTasks = {}; // taskId -> true quand les sous-tâches sont visibles dans le Gantt
 var calendarYear = new Date().getFullYear();
 var calendarMonth = new Date().getMonth();
 var calendarMode = 'month'; // 'month', 'week' or 'day'
@@ -2583,6 +2584,51 @@ function getWeekStart(year, weekNum) {
   return monday;
 }
 
+function toggleGanttSubtasks(taskId) {
+  if (expandedGanttTasks[taskId]) delete expandedGanttTasks[taskId];
+  else expandedGanttTasks[taskId] = true;
+  renderGanttView();
+}
+
+// Sous-tâches du Gantt : seulement celles avec une Due_Date (sinon impossible à positionner)
+function getGanttSubtasks(taskId) {
+  return getTaskSubtasks(taskId).filter(function(st) { return st.Due_Date; });
+}
+
+// Construit la <td> de libellé d'une sous-tâche (indentée, allégée)
+function renderGanttSubtaskLabelCell(st) {
+  var html = '<td class="gantt-task-label gantt-subtask-cell">';
+  html += '<div class="gantt-subtask-name">↳ ' + sanitize(st.Title) + '</div>';
+  html += '<div class="gantt-subtask-info">⏰ ' + formatDate(st.Due_Date);
+  if (st.Assignee) html += ' · 👤 ' + sanitize(st.Assignee).substring(0, 15);
+  html += '</div></td>';
+  return html;
+}
+
+// Couleur de barre pour une sous-tâche (verte si complétée, sinon hérite du statut parent)
+function ganttSubtaskBarClass(st, parentTask) {
+  if (st.Completed) return 'gantt-bar-done';
+  if (parentTask.Status === 'progress') return 'gantt-bar-progress';
+  return 'gantt-bar-todo';
+}
+
+// Bornes de la sous-tâche : début = Start_Date du parent (ou Due_Date subtask en fallback)
+function getGanttSubtaskRange(st, parentTask) {
+  var stEnd = new Date(st.Due_Date * 1000);
+  var stStart = parentTask.Start_Date ? new Date(parentTask.Start_Date * 1000) : new Date(st.Due_Date * 1000);
+  if (stStart > stEnd) stStart = new Date(st.Due_Date * 1000);
+  stStart.setHours(0, 0, 0, 0);
+  stEnd.setHours(23, 59, 59, 999);
+  return { start: stStart, end: stEnd };
+}
+
+// Chevron de toggle à insérer dans la cellule de libellé d'une tâche parent
+function ganttChevron(task) {
+  if (getGanttSubtasks(task.id).length === 0) return '';
+  var icon = expandedGanttTasks[task.id] ? '▼' : '▶';
+  return '<span class="gantt-toggle" onclick="event.stopPropagation();toggleGanttSubtasks(' + task.id + ')" title="' + (currentLang === 'fr' ? 'Sous-tâches' : 'Subtasks') + '">' + icon + '</span> ';
+}
+
 function renderGanttView() {
   var yearSelect = document.getElementById('gantt-year');
   if (yearSelect.options.length === 0) {
@@ -2657,7 +2703,7 @@ function renderGanttView() {
       var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
       html += '<tr>';
       html += '<td class="gantt-task-label">';
-      html += '<div class="task-name"><span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
+      html += '<div class="task-name">' + ganttChevron(task) + '<span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
       html += '<div class="task-info">';
       if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
       if (assigneeDisplay) html += ' 👤 ' + sanitize(assigneeDisplay).substring(0, 15);
@@ -2693,6 +2739,35 @@ function renderGanttView() {
       }
 
       html += '</tr>';
+
+      // === Lignes sous-tâches (mode Semaines) ===
+      if (expandedGanttTasks[task.id]) {
+        var sts = getGanttSubtasks(task.id);
+        for (var sti = 0; sti < sts.length; sti++) {
+          var st = sts[sti];
+          var stRange = getGanttSubtaskRange(st, task);
+          var stBarClass = ganttSubtaskBarClass(st, task);
+          html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st);
+          var stStartIdx = -1, stEndIdx = -1;
+          for (var wi2 = 0; wi2 < weeks.length; wi2++) {
+            if (stRange.start <= weeks[wi2].end && stRange.end >= weeks[wi2].start) {
+              if (stStartIdx === -1) stStartIdx = wi2;
+              stEndIdx = wi2;
+            }
+          }
+          for (var wi2 = 0; wi2 < weeks.length; wi2++) {
+            var isCW = getISOWeek(today) === weeks[wi2].num && today.getFullYear() === weeks[wi2].year;
+            html += '<td class="gantt-cell" style="position:relative;' + (isCW ? 'background:#fef2f2;' : '') + '">';
+            if (wi2 === stStartIdx) {
+              var stSpan = stEndIdx - stStartIdx + 1;
+              var stWidth = stSpan * 80;
+              html += '<div class="gantt-bar gantt-bar-subtask ' + stBarClass + '" style="left:2px;width:' + stWidth + 'px;cursor:pointer;" title="' + sanitize(st.Title) + '" onclick="openEditTaskModal(' + task.id + ')">' + sanitize(st.Title).substring(0, 18) + '</div>';
+            }
+            html += '</td>';
+          }
+          html += '</tr>';
+        }
+      }
     }
 
     // Footer
@@ -2728,7 +2803,7 @@ function renderGanttView() {
       var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
       html += '<tr>';
       html += '<td class="gantt-task-label">';
-      html += '<div class="task-name"><span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
+      html += '<div class="task-name">' + ganttChevron(task) + '<span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
       html += '<div class="task-info">';
       if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
       if (assigneeDisplay) html += ' 👤 ' + sanitize(assigneeDisplay).substring(0, 15);
@@ -2751,6 +2826,28 @@ function renderGanttView() {
         html += '</td>';
       }
       html += '</tr>';
+
+      // === Lignes sous-tâches (mode Mois) ===
+      if (expandedGanttTasks[task.id]) {
+        var sts = getGanttSubtasks(task.id);
+        for (var sti = 0; sti < sts.length; sti++) {
+          var st = sts[sti];
+          var stRange = getGanttSubtaskRange(st, task);
+          var stBarClass = ganttSubtaskBarClass(st, task);
+          html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st);
+          for (var m2 = 0; m2 < 12; m2++) {
+            var mStart = new Date(ganttYear, m2, 1);
+            var mEnd = new Date(ganttYear, m2 + 1, 0);
+            var stInRange = stRange.start <= mEnd && stRange.end >= mStart;
+            html += '<td class="gantt-cell" style="position:relative;">';
+            if (stInRange) {
+              html += '<div class="gantt-bar gantt-bar-subtask ' + stBarClass + '" style="left:2px;right:2px;cursor:pointer;" title="' + sanitize(st.Title) + '" onclick="openEditTaskModal(' + task.id + ')">' + sanitize(st.Title).substring(0, 10) + '</div>';
+            }
+            html += '</td>';
+          }
+          html += '</tr>';
+        }
+      }
     }
 
     html += '</tbody></table>';
@@ -2794,7 +2891,7 @@ function renderGanttView() {
     var assigneeDisplay = task.Assignee ? getUserDisplayName(task.Assignee.split(',')[0].trim()) : '';
     html += '<tr>';
     html += '<td class="gantt-task-label">';
-    html += '<div class="task-name"><span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
+    html += '<div class="task-name">' + ganttChevron(task) + '<span class="priority-dot ' + dotClass + '"></span> ' + sanitize(task.Title) + '</div>';
     html += '<div class="task-info">';
     if (task.Priority) html += '🏷️ ' + priorityLabel(task.Priority);
     if (assigneeDisplay) html += ' 👤 ' + sanitize(assigneeDisplay).substring(0, 15);
@@ -2824,6 +2921,33 @@ function renderGanttView() {
     }
 
     html += '</tr>';
+
+    // === Lignes sous-tâches (mode Jours) ===
+    if (expandedGanttTasks[task.id]) {
+      var sts = getGanttSubtasks(task.id);
+      for (var sti = 0; sti < sts.length; sti++) {
+        var st = sts[sti];
+        var stRange = getGanttSubtaskRange(st, task);
+        var stStartDay = new Date(stRange.start); stStartDay.setHours(0, 0, 0, 0);
+        var stEndDay = new Date(stRange.end); stEndDay.setHours(0, 0, 0, 0);
+        var stBarClass = ganttSubtaskBarClass(st, task);
+        html += '<tr class="gantt-subtask-row">' + renderGanttSubtaskLabelCell(st);
+        for (var di2 = 0; di2 < days.length; di2++) {
+          var dd2 = days[di2];
+          var isToday2 = dd2.getTime() === today.getTime();
+          var isWeekend2 = dd2.getDay() === 0 || dd2.getDay() === 6;
+          var cellClass2 = (isToday2 ? 'today-col' : '') + (isWeekend2 ? ' weekend-col' : '');
+          html += '<td class="gantt-cell ' + cellClass2 + '">';
+          if (dd2.getTime() === stStartDay.getTime()) {
+            var stSpan = Math.max(1, Math.round((stEndDay - stStartDay) / 86400000) + 1);
+            var stWidth = stSpan * 36;
+            html += '<div class="gantt-bar gantt-bar-subtask ' + stBarClass + '" style="left:2px;width:' + stWidth + 'px;cursor:pointer;" title="' + sanitize(st.Title) + '" onclick="openEditTaskModal(' + task.id + ')">' + sanitize(st.Title).substring(0, 12) + '</div>';
+          }
+          html += '</td>';
+        }
+        html += '</tr>';
+      }
+    }
   }
 
   html += '</tbody></table>';

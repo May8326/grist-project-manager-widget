@@ -1120,6 +1120,35 @@
     .gantt-bar-progress { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
     .gantt-bar-done { background: linear-gradient(135deg, #22c55e, #4ade80); }
     .gantt-bar-overdue { background: linear-gradient(135deg, #ef4444, #f87171); }
+
+    /* Sous-tâches dans le Gantt */
+    .gantt-toggle {
+      display: inline-block; width: 14px; cursor: pointer;
+      color: #94a3b8; font-size: 10px; user-select: none;
+      transition: color 0.15s;
+    }
+    .gantt-toggle:hover { color: #ef4444; }
+    .gantt-subtask-row { background: rgba(99, 102, 241, 0.04); }
+    .gantt-subtask-row:hover { background: rgba(99, 102, 241, 0.08); }
+    .gantt-subtask-cell { padding-left: 28px !important; }
+    .gantt-subtask-name {
+      font-size: 12px; font-weight: 500;
+      color: #475569;
+    }
+    .gantt-subtask-info {
+      font-size: 10px; color: #94a3b8; margin-top: 2px;
+    }
+    .gantt-bar-subtask {
+      top: 11px; height: 14px;
+      font-size: 8px;
+      opacity: 0.85;
+      border: 1px dashed rgba(255,255,255,0.5);
+    }
+    body.dark-mode .gantt-subtask-row { background: rgba(99, 102, 241, 0.08); }
+    body.dark-mode .gantt-subtask-row:hover { background: rgba(99, 102, 241, 0.15); }
+    body.dark-mode .gantt-subtask-name { color: #cbd5e1; }
+    body.dark-mode .gantt-subtask-info { color: #64748b; }
+    body.dark-mode .gantt-toggle { color: #64748b; }
     .gantt-footer {
       padding: 10px 14px;
       font-size: 11px;
@@ -3437,7 +3466,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=21"></script>
+  <script src="widget.js?v=22"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>
