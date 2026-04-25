@@ -3080,6 +3080,53 @@ async function deleteCategory(categoryId) {
   }
 }
 
+async function getRoleChoicesFromGrist() {
+  // Default roles + roles already used
+  var roleSet = {};
+  ['admin', 'member', 'viewer'].forEach(function(r) { roleSet[r] = true; });
+  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
+
+  // Try to get choices defined in Grist column metadata
+  try {
+    var roleColName = getColumnName('users', 'role');
+    var tablesData = await grist.docApi.fetchTable('_grist_Tables');
+    var columnsData = await grist.docApi.fetchTable('_grist_Tables_column');
+    
+    // Find the table id for USERS_TABLE
+    var tableRowId = null;
+    if (tablesData && tablesData.id && tablesData.tableId) {
+      for (var i = 0; i < tablesData.id.length; i++) {
+        if (tablesData.tableId[i] === USERS_TABLE) {
+          tableRowId = tablesData.id[i];
+          break;
+        }
+      }
+    }
+    
+    // Find the Role column in that table and parse its widgetOptions
+    if (tableRowId !== null && columnsData && columnsData.id) {
+      for (var j = 0; j < columnsData.id.length; j++) {
+        if (columnsData.parentId[j] === tableRowId && columnsData.colId[j] === roleColName) {
+          var wo = columnsData.widgetOptions[j];
+          if (wo) {
+            try {
+              var opts = JSON.parse(wo);
+              if (opts.choices && Array.isArray(opts.choices)) {
+                opts.choices.forEach(function(c) { roleSet[c] = true; });
+              }
+            } catch (e) { /* ignore parse errors */ }
+          }
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Could not fetch role choices from Grist metadata:', e);
+  }
+
+  return Object.keys(roleSet).sort();
+}
+
 async function openEditUserModal(userId) {
   var user = users.find(function(u) { return u.id === userId; });
   if (!user) return;
@@ -3090,11 +3137,7 @@ async function openEditUserModal(userId) {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '"' + sel + '>' + sanitize(groups[i].Name) + '</option>';
   }
 
-  // Collect all unique roles from existing users + default roles
-  var roleSet = {};
-  ['admin', 'member', 'viewer'].forEach(function(r) { roleSet[r] = true; });
-  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
-  var roleChoices = Object.keys(roleSet).sort();
+  var roleChoices = await getRoleChoicesFromGrist();
 
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
@@ -3188,11 +3231,7 @@ async function openNewUserModal() {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '">' + sanitize(groups[i].Name) + '</option>';
   }
 
-  // Collect all unique roles from existing users + default roles
-  var roleSet = {};
-  ['admin', 'member', 'viewer'].forEach(function(r) { roleSet[r] = true; });
-  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
-  var roleChoices = Object.keys(roleSet).sort();
+  var roleChoices = await getRoleChoicesFromGrist();
 
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
