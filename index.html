@@ -1123,11 +1123,37 @@
 
     /* Sous-tâches dans le Gantt */
     .gantt-toggle {
-      display: inline-block; width: 14px; cursor: pointer;
-      color: #94a3b8; font-size: 10px; user-select: none;
-      transition: color 0.15s;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px;
+      margin-right: 6px;
+      padding: 0; border: 1px solid #cbd5e1; border-radius: 4px;
+      background: #f8fafc;
+      color: #475569; font-size: 9px;
+      cursor: pointer; user-select: none;
+      vertical-align: middle;
+      transition: all 0.15s;
     }
-    .gantt-toggle:hover { color: #ef4444; }
+    .gantt-toggle:hover {
+      background: #ef4444; border-color: #ef4444; color: white;
+    }
+    .gantt-toggle-open {
+      background: #ef4444; border-color: #ef4444; color: white;
+    }
+    .gantt-toggle-empty {
+      border: none; background: transparent; cursor: default;
+      pointer-events: none;
+    }
+    .gantt-toggle-empty:hover { background: transparent; }
+    body.dark-mode .gantt-toggle {
+      background: #0f172a; border-color: #334155; color: #94a3b8;
+    }
+    body.dark-mode .gantt-toggle:hover,
+    body.dark-mode .gantt-toggle-open {
+      background: #ef4444; border-color: #ef4444; color: white;
+    }
+    body.dark-mode .gantt-toggle-empty {
+      background: transparent; border-color: transparent;
+    }
     .gantt-subtask-row { background: rgba(99, 102, 241, 0.04); }
     .gantt-subtask-row:hover { background: rgba(99, 102, 241, 0.08); }
     .gantt-subtask-cell { padding-left: 28px !important; }
@@ -3466,7 +3492,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=22"></script>
+  <script src="widget.js?v=23"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>

@@ -2622,11 +2622,15 @@ function getGanttSubtaskRange(st, parentTask) {
   return { start: stStart, end: stEnd };
 }
 
-// Chevron de toggle à insérer dans la cellule de libellé d'une tâche parent
+// Slot de toggle à insérer dans la cellule de libellé. Toujours rendu (largeur fixe)
+// pour que tous les titres soient alignés, même quand la tâche n'a pas de sous-tâche.
 function ganttChevron(task) {
-  if (getGanttSubtasks(task.id).length === 0) return '';
-  var icon = expandedGanttTasks[task.id] ? '▼' : '▶';
-  return '<span class="gantt-toggle" onclick="event.stopPropagation();toggleGanttSubtasks(' + task.id + ')" title="' + (currentLang === 'fr' ? 'Sous-tâches' : 'Subtasks') + '">' + icon + '</span> ';
+  if (getGanttSubtasks(task.id).length === 0) {
+    return '<span class="gantt-toggle gantt-toggle-empty"></span>';
+  }
+  var expanded = !!expandedGanttTasks[task.id];
+  var icon = expanded ? '▼' : '▶';
+  return '<button type="button" class="gantt-toggle' + (expanded ? ' gantt-toggle-open' : '') + '" onclick="event.stopPropagation();toggleGanttSubtasks(' + task.id + ')" title="' + (currentLang === 'fr' ? 'Sous-tâches' : 'Subtasks') + '">' + icon + '</button>';
 }
 
 function renderGanttView() {
