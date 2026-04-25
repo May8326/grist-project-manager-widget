@@ -3112,12 +3112,13 @@ async function openEditUserModal(userId) {
   html += '<div class="form-group"><label>' + t('fieldName') + '</label><input type="text" id="user-name" value="' + sanitize(user.Name) + '" /></div>';
   html += '<div class="form-group"><label>' + t('fieldEmail') + '</label><input type="email" id="user-email" value="' + sanitize(user.Email) + '" /></div>';
   html += '<div class="form-row">';
-  html += '<div class="form-group"><label>' + t('fieldRole') + '</label><select id="user-role">';
+  html += '<div class="form-group"><label>' + t('fieldRole') + '</label><input type="text" id="user-role" value="' + sanitize(user.Role || '') + '" placeholder="admin, member, viewer, ..." list="role-choices" />';
+  html += '<datalist id="role-choices">';
   for (var i = 0; i < roleChoices.length; i++) {
     var r = roleChoices[i];
-    html += '<option value="' + sanitize(r) + '"' + (user.Role === r ? ' selected' : '') + '>' + sanitize(roleLabel(r)) + '</option>';
+    html += '<option value="' + sanitize(r) + '">' + sanitize(roleLabel(r)) + '</option>';
   }
-  html += '</select></div>';
+  html += '</datalist></div>';
   html += '<div class="form-group"><label>' + t('fieldGroup') + '</label><select id="user-group">' + groupOptions + '</select></div>';
   html += '</div>';
   html += '</div>';
@@ -3218,12 +3219,13 @@ async function openNewUserModal() {
   html += '<div class="form-group"><label>' + t('fieldName') + '</label><input type="text" id="user-name" /></div>';
   html += '<div class="form-group"><label>' + t('fieldEmail') + '</label><input type="email" id="user-email" /></div>';
   html += '<div class="form-row">';
-  html += '<div class="form-group"><label>' + t('fieldRole') + '</label><select id="user-role">';
+  html += '<div class="form-group"><label>' + t('fieldRole') + '</label><input type="text" id="user-role" value="member" placeholder="admin, member, viewer, ..." list="role-choices" />';
+  html += '<datalist id="role-choices">';
   for (var i = 0; i < roleChoices.length; i++) {
     var r = roleChoices[i];
-    html += '<option value="' + sanitize(r) + '"' + (r === 'member' ? ' selected' : '') + '>' + sanitize(roleLabel(r)) + '</option>';
+    html += '<option value="' + sanitize(r) + '">' + sanitize(roleLabel(r)) + '</option>';
   }
-  html += '</select></div>';
+  html += '</datalist></div>';
   html += '<div class="form-group"><label>' + t('fieldGroup') + '</label><select id="user-group">' + groupOptions + '</select></div>';
   html += '</div>';
   html += '</div>';
