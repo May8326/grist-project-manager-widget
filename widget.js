@@ -3080,7 +3080,7 @@ async function deleteCategory(categoryId) {
   }
 }
 
-function openEditUserModal(userId) {
+async function openEditUserModal(userId) {
   var user = users.find(function(u) { return u.id === userId; });
   if (!user) return;
 
@@ -3090,10 +3090,20 @@ function openEditUserModal(userId) {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '"' + sel + '>' + sanitize(groups[i].Name) + '</option>';
   }
 
-  // Collect all unique roles from existing users
-  var roleSet = {};
-  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
-  var uniqueRoles = Object.keys(roleSet).sort();
+  // Get role choices from table schema
+  var roleChoices = ['admin', 'member', 'viewer']; // default
+  try {
+    var tableSchema = await grist.docApi.getTable(USERS_TABLE);
+    if (tableSchema && tableSchema.columns) {
+      var roleCol = tableSchema.columns[getColumnName('users', 'role')];
+      if (roleCol && roleCol.type === 'Choice' && roleCol.widgetOptions) {
+        var opts = JSON.parse(roleCol.widgetOptions);
+        if (opts.choices) roleChoices = opts.choices;
+      }
+    }
+  } catch (e) {
+    console.log('Could not fetch table schema, using default roles');
+  }
 
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
@@ -3103,8 +3113,8 @@ function openEditUserModal(userId) {
   html += '<div class="form-group"><label>' + t('fieldEmail') + '</label><input type="email" id="user-email" value="' + sanitize(user.Email) + '" /></div>';
   html += '<div class="form-row">';
   html += '<div class="form-group"><label>' + t('fieldRole') + '</label><select id="user-role">';
-  for (var i = 0; i < uniqueRoles.length; i++) {
-    var r = uniqueRoles[i];
+  for (var i = 0; i < roleChoices.length; i++) {
+    var r = roleChoices[i];
     html += '<option value="' + sanitize(r) + '"' + (user.Role === r ? ' selected' : '') + '>' + sanitize(roleLabel(r)) + '</option>';
   }
   html += '</select></div>';
@@ -3180,16 +3190,26 @@ async function updateGroup(groupId) {
   }
 }
 
-function openNewUserModal() {
+async function openNewUserModal() {
   var groupOptions = '<option value="">--</option>';
   for (var i = 0; i < groups.length; i++) {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '">' + sanitize(groups[i].Name) + '</option>';
   }
 
-  // Collect all unique roles from existing users
-  var roleSet = {};
-  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
-  var uniqueRoles = Object.keys(roleSet).sort();
+  // Get role choices from table schema
+  var roleChoices = ['admin', 'member', 'viewer']; // default
+  try {
+    var tableSchema = await grist.docApi.getTable(USERS_TABLE);
+    if (tableSchema && tableSchema.columns) {
+      var roleCol = tableSchema.columns[getColumnName('users', 'role')];
+      if (roleCol && roleCol.type === 'Choice' && roleCol.widgetOptions) {
+        var opts = JSON.parse(roleCol.widgetOptions);
+        if (opts.choices) roleChoices = opts.choices;
+      }
+    }
+  } catch (e) {
+    console.log('Could not fetch table schema, using default roles');
+  }
 
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
@@ -3199,8 +3219,8 @@ function openNewUserModal() {
   html += '<div class="form-group"><label>' + t('fieldEmail') + '</label><input type="email" id="user-email" /></div>';
   html += '<div class="form-row">';
   html += '<div class="form-group"><label>' + t('fieldRole') + '</label><select id="user-role">';
-  for (var i = 0; i < uniqueRoles.length; i++) {
-    var r = uniqueRoles[i];
+  for (var i = 0; i < roleChoices.length; i++) {
+    var r = roleChoices[i];
     html += '<option value="' + sanitize(r) + '"' + (r === 'member' ? ' selected' : '') + '>' + sanitize(roleLabel(r)) + '</option>';
   }
   html += '</select></div>';
