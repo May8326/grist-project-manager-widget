@@ -3089,8 +3089,13 @@ async function getRoleChoicesFromGrist() {
   // Try to get choices defined in Grist column metadata
   try {
     var roleColName = getColumnName('users', 'role');
+    console.log('[getRoleChoicesFromGrist] Looking for column:', roleColName, 'in table:', USERS_TABLE);
+    
     var tablesData = await grist.docApi.fetchTable('_grist_Tables');
+    console.log('[getRoleChoicesFromGrist] _grist_Tables data:', tablesData);
+    
     var columnsData = await grist.docApi.fetchTable('_grist_Tables_column');
+    console.log('[getRoleChoicesFromGrist] _grist_Tables_column keys:', columnsData ? Object.keys(columnsData) : null);
     
     // Find the table id for USERS_TABLE
     var tableRowId = null;
@@ -3102,29 +3107,34 @@ async function getRoleChoicesFromGrist() {
         }
       }
     }
+    console.log('[getRoleChoicesFromGrist] tableRowId for', USERS_TABLE, '=', tableRowId);
     
     // Find the Role column in that table and parse its widgetOptions
     if (tableRowId !== null && columnsData && columnsData.id) {
       for (var j = 0; j < columnsData.id.length; j++) {
         if (columnsData.parentId[j] === tableRowId && columnsData.colId[j] === roleColName) {
           var wo = columnsData.widgetOptions[j];
+          console.log('[getRoleChoicesFromGrist] Found Role column, widgetOptions:', wo);
           if (wo) {
             try {
               var opts = JSON.parse(wo);
+              console.log('[getRoleChoicesFromGrist] Parsed choices:', opts.choices);
               if (opts.choices && Array.isArray(opts.choices)) {
                 opts.choices.forEach(function(c) { roleSet[c] = true; });
               }
-            } catch (e) { /* ignore parse errors */ }
+            } catch (e) { console.log('[getRoleChoicesFromGrist] Parse error:', e); }
           }
           break;
         }
       }
     }
   } catch (e) {
-    console.log('Could not fetch role choices from Grist metadata:', e);
+    console.log('[getRoleChoicesFromGrist] Error:', e);
   }
 
-  return Object.keys(roleSet).sort();
+  var result = Object.keys(roleSet).sort();
+  console.log('[getRoleChoicesFromGrist] Final choices:', result);
+  return result;
 }
 
 async function openEditUserModal(userId) {
