@@ -3090,6 +3090,11 @@ function openEditUserModal(userId) {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '"' + sel + '>' + sanitize(groups[i].Name) + '</option>';
   }
 
+  // Collect all unique roles from existing users
+  var roleSet = {};
+  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
+  var uniqueRoles = Object.keys(roleSet).sort();
+
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
   html += '<div class="modal-header"><h3>' + t('edit') + ' - ' + sanitize(user.Name) + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
@@ -3098,9 +3103,10 @@ function openEditUserModal(userId) {
   html += '<div class="form-group"><label>' + t('fieldEmail') + '</label><input type="email" id="user-email" value="' + sanitize(user.Email) + '" /></div>';
   html += '<div class="form-row">';
   html += '<div class="form-group"><label>' + t('fieldRole') + '</label><select id="user-role">';
-  html += '<option value="member"' + (user.Role === 'member' ? ' selected' : '') + '>' + t('roleMember') + '</option>';
-  html += '<option value="admin"' + (user.Role === 'admin' ? ' selected' : '') + '>' + t('roleAdmin') + '</option>';
-  html += '<option value="viewer"' + (user.Role === 'viewer' ? ' selected' : '') + '>' + t('roleViewer') + '</option>';
+  for (var i = 0; i < uniqueRoles.length; i++) {
+    var r = uniqueRoles[i];
+    html += '<option value="' + sanitize(r) + '"' + (user.Role === r ? ' selected' : '') + '>' + sanitize(roleLabel(r)) + '</option>';
+  }
   html += '</select></div>';
   html += '<div class="form-group"><label>' + t('fieldGroup') + '</label><select id="user-group">' + groupOptions + '</select></div>';
   html += '</div>';
@@ -3180,6 +3186,11 @@ function openNewUserModal() {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '">' + sanitize(groups[i].Name) + '</option>';
   }
 
+  // Collect all unique roles from existing users
+  var roleSet = {};
+  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
+  var uniqueRoles = Object.keys(roleSet).sort();
+
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
   html += '<div class="modal-header"><h3>' + t('modalNewUser') + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
@@ -3188,9 +3199,10 @@ function openNewUserModal() {
   html += '<div class="form-group"><label>' + t('fieldEmail') + '</label><input type="email" id="user-email" /></div>';
   html += '<div class="form-row">';
   html += '<div class="form-group"><label>' + t('fieldRole') + '</label><select id="user-role">';
-  html += '<option value="member">' + t('roleMember') + '</option>';
-  html += '<option value="admin">' + t('roleAdmin') + '</option>';
-  html += '<option value="viewer">' + t('roleViewer') + '</option>';
+  for (var i = 0; i < uniqueRoles.length; i++) {
+    var r = uniqueRoles[i];
+    html += '<option value="' + sanitize(r) + '"' + (r === 'member' ? ' selected' : '') + '>' + sanitize(roleLabel(r)) + '</option>';
+  }
   html += '</select></div>';
   html += '<div class="form-group"><label>' + t('fieldGroup') + '</label><select id="user-group">' + groupOptions + '</select></div>';
   html += '</div>';
