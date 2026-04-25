@@ -133,6 +133,14 @@ var i18n = {
     tabTeam: 'Équipe',
     teamUsersTitle: 'Utilisateurs',
     teamUsersSubtitle: 'Gérez les membres de votre équipe',
+    manageRoles: 'Rôles',
+    manageRolesTitle: 'Gérer les rôles',
+    manageRolesSubtitle: 'Ajoutez ou supprimez des rôles utilisés dans votre équipe',
+    addRole: 'Ajouter un rôle',
+    newRolePlaceholder: 'Nom du nouveau rôle',
+    rolesUpdated: 'Rôles mis à jour !',
+    confirmDeleteRole: 'Supprimer ce rôle ?',
+    cannotDeleteUsedRole: 'Ce rôle est utilisé par des utilisateurs',
     teamGroupsTitle: 'Groupes',
     teamGroupsSubtitle: 'Organisez vos utilisateurs en groupes',
     addUser: 'Ajouter',
@@ -368,6 +376,14 @@ var i18n = {
     tabTeam: 'Team',
     teamUsersTitle: 'Users',
     teamUsersSubtitle: 'Manage your team members',
+    manageRoles: 'Roles',
+    manageRolesTitle: 'Manage roles',
+    manageRolesSubtitle: 'Add or remove roles used by your team',
+    addRole: 'Add role',
+    newRolePlaceholder: 'New role name',
+    rolesUpdated: 'Roles updated!',
+    confirmDeleteRole: 'Delete this role?',
+    cannotDeleteUsedRole: 'This role is used by users',
     teamGroupsTitle: 'Groups',
     teamGroupsSubtitle: 'Organize your users into groups',
     addUser: 'Add',
@@ -3125,6 +3141,130 @@ async function getRoleChoicesFromGrist() {
   }
 
   return Object.keys(roleSet).sort();
+}
+
+// In-memory state for the manage roles modal
+var _manageRolesState = { choices: [] };
+
+async function openManageRolesModal() {
+  var choices = await getRoleChoicesFromGrist();
+  _manageRolesState.choices = choices.slice();
+  renderManageRolesModal();
+}
+
+function renderManageRolesModal() {
+  var choices = _manageRolesState.choices;
+  // Build usage map: role -> count of users
+  var usage = {};
+  users.forEach(function(u) { if (u.Role) usage[u.Role] = (usage[u.Role] || 0) + 1; });
+
+  var html = '<div class="modal-overlay" onclick="closeModal(event)">';
+  html += '<div class="modal" onclick="event.stopPropagation()">';
+  html += '<div class="modal-header"><h3>' + t('manageRolesTitle') + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-body">';
+  html += '<p style="color:#64748b;font-size:13px;margin:0 0 12px 0;">' + t('manageRolesSubtitle') + '</p>';
+
+  // Existing roles list
+  html += '<div class="settings-items">';
+  if (choices.length === 0) {
+    html += '<div style="text-align:center;color:#94a3b8;padding:20px;">--</div>';
+  } else {
+    for (var i = 0; i < choices.length; i++) {
+      var r = choices[i];
+      var count = usage[r] || 0;
+      html += '<div class="settings-item">';
+      html += '<div class="settings-item-info">';
+      html += '<strong>' + sanitize(roleLabel(r)) + '</strong>';
+      html += '<span class="settings-item-meta">' + count + ' ' + (currentLang === 'fr' ? 'utilisateur(s)' : 'user(s)') + '</span>';
+      html += '</div>';
+      html += '<div class="settings-item-actions">';
+      html += '<button class="btn-icon" onclick="removeRoleChoice(' + i + ')" title="' + t('confirmDeleteRole') + '">🗑️</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  // Add new role
+  html += '<div style="display:flex;gap:8px;margin-top:16px;">';
+  html += '<input type="text" id="new-role-name" placeholder="' + t('newRolePlaceholder') + '" style="flex:1;" onkeydown="if(event.key===\'Enter\'){addRoleChoice();}" />';
+  html += '<button class="btn btn-primary btn-sm" onclick="addRoleChoice()">+ ' + t('addRole') + '</button>';
+  html += '</div>';
+
+  html += '</div>';
+  html += '<div class="modal-footer">';
+  html += '<button class="btn btn-secondary" onclick="closeModalForce()">' + t('cancel') + '</button>';
+  html += '<button class="btn btn-primary" onclick="saveRoleChoices()">' + t('save') + '</button>';
+  html += '</div></div></div>';
+
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+function addRoleChoice() {
+  var input = document.getElementById('new-role-name');
+  var name = (input.value || '').trim();
+  if (!name) return;
+  if (_manageRolesState.choices.indexOf(name) !== -1) {
+    showToast(currentLang === 'fr' ? 'Ce rôle existe déjà' : 'Role already exists', 'error');
+    return;
+  }
+  _manageRolesState.choices.push(name);
+  renderManageRolesModal();
+}
+
+function removeRoleChoice(index) {
+  var role = _manageRolesState.choices[index];
+  // Check if used
+  var inUse = users.some(function(u) { return u.Role === role; });
+  if (inUse) {
+    if (!confirm(t('cannotDeleteUsedRole') + '. ' + (currentLang === 'fr' ? 'Continuer ?' : 'Continue?'))) {
+      return;
+    }
+  } else if (!confirm(t('confirmDeleteRole'))) {
+    return;
+  }
+  _manageRolesState.choices.splice(index, 1);
+  renderManageRolesModal();
+}
+
+async function saveRoleChoices() {
+  try {
+    var roleColName = getColumnName('users', 'role');
+    var tablesData = await grist.docApi.fetchTable('_grist_Tables');
+    var columnsData = await grist.docApi.fetchTable('_grist_Tables_column');
+
+    // Find table row id
+    var tableRowId = null;
+    for (var i = 0; i < tablesData.id.length; i++) {
+      if (tablesData.tableId[i] === USERS_TABLE) { tableRowId = tablesData.id[i]; break; }
+    }
+    if (tableRowId === null) throw new Error('Table not found');
+
+    // Find Role column and existing widgetOptions
+    var existingOpts = {};
+    for (var j = 0; j < columnsData.id.length; j++) {
+      if (columnsData.parentId[j] === tableRowId && columnsData.colId[j] === roleColName) {
+        var wo = columnsData.widgetOptions[j];
+        if (wo) {
+          try { existingOpts = JSON.parse(wo); } catch (e) {}
+        }
+        break;
+      }
+    }
+
+    // Update choices
+    existingOpts.choices = _manageRolesState.choices;
+    if (!existingOpts.widget) existingOpts.widget = 'TextBox';
+
+    await grist.docApi.applyUserActions([
+      ['ModifyColumn', USERS_TABLE, roleColName, { widgetOptions: JSON.stringify(existingOpts) }]
+    ]);
+    showToast(t('rolesUpdated'), 'success');
+    closeModalForce();
+  } catch (e) {
+    console.error('Error saving roles:', e);
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 async function openEditUserModal(userId) {
