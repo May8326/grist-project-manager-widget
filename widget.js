@@ -3095,19 +3095,28 @@ async function openEditUserModal(userId) {
   try {
     var docId = grist.docId;
     var token = await grist.getAccessToken();
+    console.log('Fetching table schema for:', USERS_TABLE, 'docId:', docId);
     var response = await fetch('/api/docs/' + docId + '/tables/' + USERS_TABLE, {
       headers: {
         'Authorization': 'Bearer ' + token
       }
     });
+    console.log('Response status:', response.status);
     if (response.ok) {
       var tableSchema = await response.json();
+      console.log('Table schema:', tableSchema);
       if (tableSchema && tableSchema.columns) {
         var roleColName = getColumnName('users', 'role');
+        console.log('Looking for column:', roleColName);
         var roleCol = tableSchema.columns.find(function(c) { return c.id === roleColName; });
+        console.log('Role column:', roleCol);
         if (roleCol && roleCol.type === 'Choice' && roleCol.widgetOptions) {
           var opts = JSON.parse(roleCol.widgetOptions);
-          if (opts.choices) roleChoices = opts.choices;
+          console.log('Widget options:', opts);
+          if (opts.choices) {
+            roleChoices = opts.choices;
+            console.log('Role choices:', roleChoices);
+          }
         }
       }
     }
