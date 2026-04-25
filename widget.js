@@ -3090,19 +3090,29 @@ async function openEditUserModal(userId) {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '"' + sel + '>' + sanitize(groups[i].Name) + '</option>';
   }
 
-  // Get role choices from table schema
+  // Get role choices from table schema via REST API
   var roleChoices = ['admin', 'member', 'viewer']; // default
   try {
-    var tableSchema = await grist.docApi.getTable(USERS_TABLE);
-    if (tableSchema && tableSchema.columns) {
-      var roleCol = tableSchema.columns[getColumnName('users', 'role')];
-      if (roleCol && roleCol.type === 'Choice' && roleCol.widgetOptions) {
-        var opts = JSON.parse(roleCol.widgetOptions);
-        if (opts.choices) roleChoices = opts.choices;
+    var docId = grist.docId;
+    var token = await grist.getAccessToken();
+    var response = await fetch('/api/docs/' + docId + '/tables/' + USERS_TABLE, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    if (response.ok) {
+      var tableSchema = await response.json();
+      if (tableSchema && tableSchema.columns) {
+        var roleColName = getColumnName('users', 'role');
+        var roleCol = tableSchema.columns.find(function(c) { return c.id === roleColName; });
+        if (roleCol && roleCol.type === 'Choice' && roleCol.widgetOptions) {
+          var opts = JSON.parse(roleCol.widgetOptions);
+          if (opts.choices) roleChoices = opts.choices;
+        }
       }
     }
   } catch (e) {
-    console.log('Could not fetch table schema, using default roles');
+    console.log('Could not fetch table schema, using default roles:', e);
   }
 
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
@@ -3197,19 +3207,29 @@ async function openNewUserModal() {
     groupOptions += '<option value="' + sanitize(groups[i].Name) + '">' + sanitize(groups[i].Name) + '</option>';
   }
 
-  // Get role choices from table schema
+  // Get role choices from table schema via REST API
   var roleChoices = ['admin', 'member', 'viewer']; // default
   try {
-    var tableSchema = await grist.docApi.getTable(USERS_TABLE);
-    if (tableSchema && tableSchema.columns) {
-      var roleCol = tableSchema.columns[getColumnName('users', 'role')];
-      if (roleCol && roleCol.type === 'Choice' && roleCol.widgetOptions) {
-        var opts = JSON.parse(roleCol.widgetOptions);
-        if (opts.choices) roleChoices = opts.choices;
+    var docId = grist.docId;
+    var token = await grist.getAccessToken();
+    var response = await fetch('/api/docs/' + docId + '/tables/' + USERS_TABLE, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    if (response.ok) {
+      var tableSchema = await response.json();
+      if (tableSchema && tableSchema.columns) {
+        var roleColName = getColumnName('users', 'role');
+        var roleCol = tableSchema.columns.find(function(c) { return c.id === roleColName; });
+        if (roleCol && roleCol.type === 'Choice' && roleCol.widgetOptions) {
+          var opts = JSON.parse(roleCol.widgetOptions);
+          if (opts.choices) roleChoices = opts.choices;
+        }
       }
     }
   } catch (e) {
-    console.log('Could not fetch table schema, using default roles');
+    console.log('Could not fetch table schema, using default roles:', e);
   }
 
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
