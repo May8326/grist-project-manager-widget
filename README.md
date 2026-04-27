@@ -1,5 +1,9 @@
 # Grist Project Manager Widget
 
+> ⚠️ Ceci est un fork du widget de management de projet développé et mis à disposition par [Isaytoo](https://github.com/isaytoo) sur GitHub à [cette adresse](https://github.com/isaytoo/grist-project-manager-widget.git)
+
+
+
 > **Author:** Said Hamadou
 > **License:** Apache-2.0
 
