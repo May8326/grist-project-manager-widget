@@ -3195,16 +3195,16 @@
       <div class="table-filters">
         <input type="text" id="table-search" placeholder="Rechercher une tâche..." data-i18n-placeholder="taskSearchPlaceholder" oninput="renderTableView()" />
         <select id="filter-status" onchange="renderTableView()">
-          <option value="">Tous les statuts</option>
-          <option value="todo">À faire</option>
-          <option value="progress">En cours</option>
-          <option value="done">Terminé</option>
+          <option value="" data-i18n="allStatuses">Tous les statuts</option>
+          <option value="todo" data-i18n="statusTodo">À faire</option>
+          <option value="progress" data-i18n="statusProgress">En cours</option>
+          <option value="done" data-i18n="statusDone">Terminé</option>
         </select>
         <select id="filter-priority" onchange="renderTableView()">
-          <option value="">Toutes priorités</option>
-          <option value="high">Haute</option>
-          <option value="medium">Moyenne</option>
-          <option value="low">Basse</option>
+          <option value="" data-i18n="allPriorities">Toutes priorités</option>
+          <option value="high" data-i18n="priorityHigh">Haute</option>
+          <option value="medium" data-i18n="priorityMedium">Moyenne</option>
+          <option value="low" data-i18n="priorityLow">Basse</option>
         </select>
       </div>
       <div id="table-view"></div>
@@ -3271,11 +3271,11 @@
               <h3 style="margin:0;">📅 <span data-i18n="chartTimeline">Charge dans le temps par agent</span></h3>
               <div style="display:flex;gap:8px;align-items:center;">
                 <select id="timeline-period" onchange="renderTimelineChart()" style="padding:5px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
-                  <option value="weeks">Par semaine (8 sem.)</option>
-                  <option value="months">Par mois (6 mois)</option>
+                  <option value="weeks" data-i18n="byWeek8">Par semaine (8 sem.)</option>
+                  <option value="months" data-i18n="byMonth6">Par mois (6 mois)</option>
                 </select>
                 <select id="timeline-agent" onchange="renderTimelineChart()" style="padding:5px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
-                  <option value="">Tous les agents</option>
+                  <option value="" data-i18n="allAgents">Tous les agents</option>
                 </select>
               </div>
             </div>
@@ -3315,10 +3315,10 @@
       <div class="table-filters">
         <input type="text" id="template-search" placeholder="Rechercher un modèle..." data-i18n-placeholder="templateSearchPlaceholder" oninput="renderTemplatesView()" />
         <select id="filter-template-priority" onchange="renderTemplatesView()">
-          <option value="">Toutes priorités</option>
-          <option value="high">Haute</option>
-          <option value="medium">Moyenne</option>
-          <option value="low">Basse</option>
+          <option value="" data-i18n="allPriorities">Toutes priorités</option>
+          <option value="high" data-i18n="priorityHigh">Haute</option>
+          <option value="medium" data-i18n="priorityMedium">Moyenne</option>
+          <option value="low" data-i18n="priorityLow">Basse</option>
         </select>
       </div>
       <div id="templates-list"></div>
@@ -3406,20 +3406,19 @@
         <div class="settings-section" style="grid-column: 1 / -1;">
           <div class="settings-section-header">
             <div>
-              <h3>🔧 Configuration avancée</h3>
-              <p>Mappez vos propres tables et colonnes Grist</p>
+              <h3>🔧 <span data-i18n="advancedConfig">Configuration avancée</span></h3>
+              <p data-i18n="mappingSubtitle">Mappez vos propres tables et colonnes Grist</p>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="openColumnMappingModal()">⚙️ Configurer le mapping</button>
+            <button class="btn btn-secondary btn-sm" onclick="openColumnMappingModal()">⚙️ <span data-i18n="configureMapping">Configurer le mapping</span></button>
           </div>
           <div class="settings-content">
-            <p style="color:#64748b;font-size:13px;margin-bottom:12px;">
-              Par défaut, le widget utilise les tables PM_Tasks, PM_Users, etc. 
-              Vous pouvez mapper vos propres tables existantes pour réutiliser vos données.
+            <p style="color:#64748b;font-size:13px;margin-bottom:12px;" data-i18n="mappingDescription">
+              Par défaut, le widget utilise les tables PM_Tasks, PM_Users, etc. Vous pouvez mapper vos propres tables existantes pour réutiliser vos données.
             </p>
-            <a href="https://github.com/isaytoo/grist-project-manager-widget/blob/main/GUIDE_MAPPING.md" 
-               target="_blank" 
+            <a href="https://github.com/isaytoo/grist-project-manager-widget/blob/main/GUIDE_MAPPING.md"
+               target="_blank"
                style="display:inline-flex;align-items:center;gap:6px;color:#3b82f6;text-decoration:none;font-size:13px;font-weight:500;">
-              📖 Consulter le guide complet du système de mapping
+              📖 <span data-i18n="mappingGuide">Consulter le guide complet du système de mapping</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
               </svg>
@@ -3480,9 +3479,9 @@
             <div class="form-group">
               <label data-i18n="projectStatus">Statut</label>
               <select id="project-status">
-                <option value="active">Actif</option>
-                <option value="completed">Terminé</option>
-                <option value="archived">Archivé</option>
+                <option value="active" data-i18n="projectActive">Actif</option>
+                <option value="completed" data-i18n="projectCompleted">Terminé</option>
+                <option value="archived" data-i18n="projectArchived">Archivé</option>
               </select>
             </div>
           </div>
@@ -3520,7 +3519,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=27"></script>
+  <script src="widget.js?v=28"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>

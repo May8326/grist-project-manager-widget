@@ -258,7 +258,18 @@ var i18n = {
     calMonth: 'Mois',
     calWeek: 'Semaine',
     calDay: 'Jour',
-    manageRolesTitle: 'Gérer les rôles'
+    manageRolesTitle: 'Gérer les rôles',
+    byWeek8: 'Par semaine (8 sem.)',
+    byMonth6: 'Par mois (6 mois)',
+    allAgents: 'Tous les agents',
+    advancedConfig: 'Configuration avancée',
+    mappingSubtitle: 'Mappez vos propres tables et colonnes Grist',
+    configureMapping: 'Configurer le mapping',
+    mappingDescription: 'Par défaut, le widget utilise les tables PM_Tasks, PM_Users, etc. Vous pouvez mapper vos propres tables existantes pour réutiliser vos données.',
+    mappingGuide: 'Consulter le guide complet du système de mapping',
+    projectActive: 'Actif',
+    projectCompleted: 'Terminé',
+    projectArchived: 'Archivé'
   },
   en: {
     appTitle: 'Project Management',
@@ -513,7 +524,18 @@ var i18n = {
     calMonth: 'Month',
     calWeek: 'Week',
     calDay: 'Day',
-    manageRolesTitle: 'Manage roles'
+    manageRolesTitle: 'Manage roles',
+    byWeek8: 'By week (8 wks)',
+    byMonth6: 'By month (6 mos)',
+    allAgents: 'All agents',
+    advancedConfig: 'Advanced configuration',
+    mappingSubtitle: 'Map your own Grist tables and columns',
+    configureMapping: 'Configure mapping',
+    mappingDescription: 'By default the widget uses PM_Tasks, PM_Users, etc. You can map your own existing tables to reuse your data.',
+    mappingGuide: 'Read the complete mapping guide',
+    projectActive: 'Active',
+    projectCompleted: 'Completed',
+    projectArchived: 'Archived'
   }
 };
 
@@ -1742,6 +1764,7 @@ function getProjectColor(projectId) {
 }
 
 function refreshAllViews() {
+  if (typeof renderProjectSelector === 'function') renderProjectSelector();
   updateStats();
   var activeTab = document.querySelector('.tab-btn.active');
   if (activeTab) {
