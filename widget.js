@@ -246,7 +246,19 @@ var i18n = {
     addCategory: 'Ajouter',
     categoryCreated: 'Catégorie créée',
     categoryDeleted: 'Catégorie supprimée',
-    noCategories: 'Aucune catégorie'
+    noCategories: 'Aucune catégorie',
+    chartTimeline: 'Charge dans le temps par agent',
+    edit: 'Modifier',
+    required: 'requis',
+    tag: 'Tag',
+    globalSearchPlaceholder: 'Rechercher...',
+    taskSearchPlaceholder: 'Rechercher une tâche...',
+    templateSearchPlaceholder: 'Rechercher un modèle...',
+    calToday: "Aujourd'hui",
+    calMonth: 'Mois',
+    calWeek: 'Semaine',
+    calDay: 'Jour',
+    manageRolesTitle: 'Gérer les rôles'
   },
   en: {
     appTitle: 'Project Management',
@@ -489,7 +501,19 @@ var i18n = {
     addCategory: 'Add',
     categoryCreated: 'Category created',
     categoryDeleted: 'Category deleted',
-    noCategories: 'No categories'
+    noCategories: 'No categories',
+    chartTimeline: 'Workload over time per assignee',
+    edit: 'Edit',
+    required: 'required',
+    tag: 'Tag',
+    globalSearchPlaceholder: 'Search...',
+    taskSearchPlaceholder: 'Search a task...',
+    templateSearchPlaceholder: 'Search a template...',
+    calToday: 'Today',
+    calMonth: 'Month',
+    calWeek: 'Week',
+    calDay: 'Day',
+    manageRolesTitle: 'Manage roles'
   }
 };
 
@@ -506,6 +530,18 @@ function setLang(lang) {
     var key = el.getAttribute('data-i18n');
     if (i18n[currentLang] && i18n[currentLang][key]) {
       el.textContent = i18n[currentLang][key];
+    }
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n-placeholder');
+    if (i18n[currentLang] && i18n[currentLang][key]) {
+      el.setAttribute('placeholder', i18n[currentLang][key]);
+    }
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n-title');
+    if (i18n[currentLang] && i18n[currentLang][key]) {
+      el.setAttribute('title', i18n[currentLang][key]);
     }
   });
   refreshAllViews();

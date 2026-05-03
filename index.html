@@ -3100,7 +3100,7 @@
           <p data-i18n="appSubtitle">Organisez et suivez vos tâches avec le tableau Kanban ou la vue tableau</p>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <input type="text" id="global-search" class="global-search" placeholder="Rechercher..." oninput="globalSearch(this.value)" />
+          <input type="text" id="global-search" class="global-search" placeholder="Rechercher..." data-i18n-placeholder="globalSearchPlaceholder" oninput="globalSearch(this.value)" />
           <button class="btn-icon-header" id="notifications-btn" onclick="showNotifications()" title="Alertes">🔔<span class="notif-badge" id="notif-badge"></span></button>
           <button class="btn-icon-header" onclick="toggleDarkMode()" title="Mode sombre">🌙</button>
           <button class="btn-icon-header" onclick="exportTasks('csv')" title="Export CSV">📥</button>
@@ -3167,11 +3167,11 @@
           <button class="calendar-nav-btn" onclick="calendarNav(-1)">◀</button>
           <h2 id="calendar-month-title"></h2>
           <button class="calendar-nav-btn" onclick="calendarNav(1)">▶</button>
-          <button class="calendar-today-btn" onclick="calendarToday()">Aujourd'hui</button>
+          <button class="calendar-today-btn" onclick="calendarToday()" data-i18n="calToday">Aujourd'hui</button>
           <div class="calendar-mode-btns">
-            <button class="calendar-mode-btn active" data-mode="month" onclick="setCalendarMode('month')">Mois</button>
-            <button class="calendar-mode-btn" data-mode="week" onclick="setCalendarMode('week')">Semaine</button>
-            <button class="calendar-mode-btn" data-mode="day" onclick="setCalendarMode('day')">Jour</button>
+            <button class="calendar-mode-btn active" data-mode="month" onclick="setCalendarMode('month')" data-i18n="calMonth">Mois</button>
+            <button class="calendar-mode-btn" data-mode="week" onclick="setCalendarMode('week')" data-i18n="calWeek">Semaine</button>
+            <button class="calendar-mode-btn" data-mode="day" onclick="setCalendarMode('day')" data-i18n="calDay">Jour</button>
           </div>
         </div>
         <div class="calendar-grid">
@@ -3193,7 +3193,7 @@
         <p data-i18n="tableSubtitle">Gérez vos tâches avec édition inline avancée</p>
       </div>
       <div class="table-filters">
-        <input type="text" id="table-search" placeholder="Rechercher une tâche..." oninput="renderTableView()" />
+        <input type="text" id="table-search" placeholder="Rechercher une tâche..." data-i18n-placeholder="taskSearchPlaceholder" oninput="renderTableView()" />
         <select id="filter-status" onchange="renderTableView()">
           <option value="">Tous les statuts</option>
           <option value="todo">À faire</option>
@@ -3220,7 +3220,7 @@
         <button class="btn-secondary btn-sm" onclick="ganttNav(-1)">◀</button>
         <span data-i18n="ganttYear">Année :</span>
         <select id="gantt-year" onchange="renderGanttView()"></select>
-        <button class="gantt-today btn-sm" onclick="ganttToday()">Aujourd'hui</button>
+        <button class="gantt-today btn-sm" onclick="ganttToday()" data-i18n="ganttToday">Aujourd'hui</button>
         <button class="btn-secondary btn-sm" onclick="ganttNav(1)">▶</button>
         <div style="flex:1;"></div>
         <div class="gantt-view-btns" style="display:flex;gap:4px;">
@@ -3313,7 +3313,7 @@
         <button class="btn-new-task" onclick="openNewTemplateModal()">+ <span data-i18n="newTemplate">Nouveau modèle</span></button>
       </div>
       <div class="table-filters">
-        <input type="text" id="template-search" placeholder="Rechercher un modèle..." oninput="renderTemplatesView()" />
+        <input type="text" id="template-search" placeholder="Rechercher un modèle..." data-i18n-placeholder="templateSearchPlaceholder" oninput="renderTemplatesView()" />
         <select id="filter-template-priority" onchange="renderTemplatesView()">
           <option value="">Toutes priorités</option>
           <option value="high">Haute</option>
@@ -3336,7 +3336,7 @@
               <p data-i18n="teamUsersSubtitle">Gérez les membres de votre équipe</p>
             </div>
             <div style="display:flex;gap:8px;">
-              <button class="btn btn-secondary btn-sm" onclick="openManageRolesModal()" title="Gérer les rôles">⚙️ <span data-i18n="manageRoles">Rôles</span></button>
+              <button class="btn btn-secondary btn-sm" onclick="openManageRolesModal()" title="Gérer les rôles" data-i18n-title="manageRolesTitle">⚙️ <span data-i18n="manageRoles">Rôles</span></button>
               <button class="btn btn-primary btn-sm" onclick="openNewUserModal()">+ <span data-i18n="addUser">Ajouter</span></button>
             </div>
           </div>
@@ -3520,7 +3520,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=26"></script>
+  <script src="widget.js?v=27"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>
