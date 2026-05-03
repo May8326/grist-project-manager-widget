@@ -2501,8 +2501,6 @@ function renderTableView() {
 
     var taskSubtasks = getTaskSubtasks(task.id);
     var completedSt = taskSubtasks.filter(function(st) { return st.Completed; }).length;
-    var progressPct = taskSubtasks.length > 0 ? Math.round((completedSt / taskSubtasks.length) * 100) : 0;
-    var barClass = progressPct === 100 ? 'bar-done' : (progressPct >= 50 ? 'bar-progress' : 'bar-todo');
 
     html += '<tr class="task-row clickable-row" onclick="openEditTaskModal(' + task.id + ')">';
     html += '<td><div style="display:flex;align-items:center;gap:8px;">';
@@ -4291,7 +4289,7 @@ function renderAssigneeChips() {
   return html;
 }
 
-function addAssigneeChip(taskId) {
+function addAssigneeChip() {
   var sel = document.getElementById('assignee-select');
   var val = sel.value;
   if (!val || editAssignees.indexOf(val) !== -1) return;
@@ -4457,7 +4455,7 @@ async function deleteSubtask(subtaskId, parentTaskId) {
 }
 
 // Édition inline d'une sous-tâche
-function startEditSubtask(subtaskId, taskId) {
+function startEditSubtask(subtaskId) {
   var viewEl = document.getElementById('st-view-' + subtaskId);
   var editEl = document.getElementById('st-edit-' + subtaskId);
   if (viewEl) viewEl.style.display = 'none';
