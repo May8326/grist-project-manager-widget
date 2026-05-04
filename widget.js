@@ -1690,32 +1690,42 @@ function renderProjectSelector() {
   });
   html += '</select>';
 
-  // Filtre Projet avec recherche en temps réel
-  var currentProjName = '';
-  if (currentProjectId) {
-    var cp = projects.find(function(p) { return p.id === currentProjectId; });
-    currentProjName = cp ? (cp.Name || '') : '';
-  }
-  html += '<div style="position:relative;display:inline-block;">';
-  html += '<input type="text" id="project-search-input" class="cascade-select' + (currentProjectId ? ' cascade-active' : '') + '"';
-  html += ' placeholder="' + (currentLang === 'fr' ? '🔍 Projet...' : '🔍 Project...') + '"';
-  html += ' value="' + sanitize(currentProjName) + '"';
-  html += ' oninput="filterProjectDropdown(this.value)" onfocus="showProjectDropdown()" autocomplete="off" style="min-width:140px;">';
-  html += '<div id="project-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-secondary,#1e293b);border:1px solid var(--border,#334155);border-radius:6px;max-height:220px;overflow-y:auto;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.3);">';
-  html += '<div class="proj-option" data-id="" onclick="selectProjectOption(\'\',\'\')" style="padding:6px 10px;cursor:pointer;font-size:12px;color:#94a3b8;">' + t('allProjects') + '</div>';
+  // Filtre Projet — combobox moderne avec recherche intégrée
+  var selProj = currentProjectId ? projects.find(function(p) { return p.id === currentProjectId; }) : null;
+  var btnLabel = selProj ? sanitize(selProj.Name) : (currentLang === 'fr' ? 'Tous les projets' : 'All projects');
+  var btnDotColor = selProj ? (selProj.Color || '#6366f1') : 'transparent';
+  var btnClass = 'proj-combobox-btn' + (currentProjectId ? ' active' : '');
+  html += '<div class="proj-combobox" id="proj-combobox">';
+  html += '<button type="button" class="' + btnClass + '" onclick="toggleProjectDropdown()" id="proj-combobox-btn">';
+  html += '<span class="proj-combobox-dot" style="background:' + btnDotColor + ';' + (selProj ? '' : 'opacity:0;') + '"></span>';
+  html += '<span class="proj-combobox-label">' + btnLabel + '</span>';
+  html += '<span class="proj-combobox-chevron">▾</span>';
+  html += '</button>';
+  html += '<div class="proj-dropdown" id="project-dropdown">';
+  html += '<div class="proj-dropdown-search"><input type="text" id="proj-search-input" placeholder="' + (currentLang === 'fr' ? 'Rechercher...' : 'Search...') + '" oninput="filterProjectDropdown(this.value)" autocomplete="off"></div>';
+  html += '<div class="proj-dropdown-list" id="proj-dropdown-list">';
+  // "All projects" option
+  html += '<div class="proj-option' + (!currentProjectId ? ' selected' : '') + '" data-id="" data-name="" onclick="selectProjectOption(\'\',\'\')">';
+  html += '<span class="proj-dot" style="background:#94a3b8;opacity:.4;"></span>';
+  html += '<span>' + (currentLang === 'fr' ? 'Tous les projets' : 'All projects') + '</span>';
+  html += '</div>';
+  // Project options with task counts
+  var allTasksForCount = tasks;
   visibleProjects.forEach(function(proj) {
-    html += '<div class="proj-option" data-id="' + proj.id + '" data-name="' + sanitize(proj.Name) + '" onclick="selectProjectOption(' + proj.id + ',\'' + sanitize((proj.Name || '').replace(/'/g, '\\\'')) + '\')" style="padding:6px 10px;cursor:pointer;font-size:12px;">' + sanitize(proj.Name) + '</div>';
+    var taskCount = allTasksForCount.filter(function(tt) { return tt.Project_Id === proj.id; }).length;
+    var isSelected = currentProjectId === proj.id;
+    var safeName = sanitize(proj.Name || '');
+    var safeNameJs = (proj.Name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    html += '<div class="proj-option' + (isSelected ? ' selected' : '') + '" data-id="' + proj.id + '" data-name="' + safeName + '" onclick="selectProjectOption(' + proj.id + ',\'' + safeNameJs + '\')">';
+    html += '<span class="proj-dot" style="background:' + (proj.Color || '#6366f1') + ';"></span>';
+    html += '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;">' + safeName + '</span>';
+    if (taskCount > 0) html += '<span class="proj-count">' + taskCount + '</span>';
+    html += '</div>';
   });
-  html += '</div></div>';
-
-  if (currentProjectId) {
-    var proj = projects.find(function(p) { return p.id === currentProjectId; });
-    var color = (proj && proj.Color) ? proj.Color : '#6366f1';
-    html += '<span class="project-active-badge" style="background:' + color + '20;color:' + color + ';border-color:' + color + '40;">🎯 ' + sanitize(proj ? proj.Name : '') + '</span>';
-  }
+  html += '</div></div></div>';
 
   if (currentFilterRole || currentFilterAssignee || currentProjectId) {
-    html += '<button class="btn-icon" onclick="resetFilters()" title="' + (currentLang === 'fr' ? 'Réinitialiser les filtres' : 'Reset filters') + '">✕</button>';
+    html += '<button class="btn-icon" onclick="resetFilters()" title="' + (currentLang === 'fr' ? 'Réinitialiser les filtres' : 'Reset filters') + '" style="color:#ef4444;">✕</button>';
   }
 
   html += '<button class="btn-icon" onclick="openProjectModal()" title="' + t('manageProjects') + '">⚙️</button>';
@@ -1747,38 +1757,53 @@ function renderProjectSelector() {
   }
 }
 
-function showProjectDropdown() {
+function toggleProjectDropdown() {
   var dd = document.getElementById('project-dropdown');
-  if (dd) { dd.style.display = 'block'; filterProjectDropdown(''); }
-  setTimeout(function() {
-    document.addEventListener('mousedown', function hideDD(e) {
-      var dd2 = document.getElementById('project-dropdown');
-      var inp = document.getElementById('project-search-input');
-      if (dd2 && !dd2.contains(e.target) && e.target !== inp) {
-        dd2.style.display = 'none';
-        document.removeEventListener('mousedown', hideDD);
-      }
-    });
-  }, 0);
+  var btn = document.getElementById('proj-combobox-btn');
+  if (!dd) return;
+  var isOpen = dd.classList.contains('show');
+  if (isOpen) {
+    dd.classList.remove('show');
+    if (btn) btn.classList.remove('open');
+  } else {
+    dd.classList.add('show');
+    if (btn) btn.classList.add('open');
+    var inp = document.getElementById('proj-search-input');
+    if (inp) { inp.value = ''; inp.focus(); filterProjectDropdown(''); }
+    setTimeout(function() {
+      document.addEventListener('mousedown', function hideDD(e) {
+        var dd2 = document.getElementById('project-dropdown');
+        var box = document.getElementById('proj-combobox');
+        if (dd2 && box && !box.contains(e.target)) {
+          dd2.classList.remove('show');
+          var btn2 = document.getElementById('proj-combobox-btn');
+          if (btn2) btn2.classList.remove('open');
+          document.removeEventListener('mousedown', hideDD);
+        }
+      });
+    }, 0);
+  }
 }
 
+// Keep showProjectDropdown as alias (called from old code paths if any)
+function showProjectDropdown() { toggleProjectDropdown(); }
+
 function filterProjectDropdown(query) {
-  var dd = document.getElementById('project-dropdown');
-  if (!dd) return;
-  dd.style.display = 'block';
+  var list = document.getElementById('proj-dropdown-list');
+  if (!list) return;
   var q = (query || '').toLowerCase();
-  var opts = dd.querySelectorAll('.proj-option');
+  var opts = list.querySelectorAll('.proj-option');
   opts.forEach(function(opt) {
     var name = (opt.dataset.name || '').toLowerCase();
-    opt.style.display = (!q || name.indexOf(q) !== -1) ? 'block' : 'none';
+    opt.style.display = (!q || name.indexOf(q) !== -1 || opt.dataset.id === '') ? '' : 'none';
   });
 }
 
 function selectProjectOption(projectId, projectName) {
-  var inp = document.getElementById('project-search-input');
-  if (inp) inp.value = projectName;
   var dd = document.getElementById('project-dropdown');
-  if (dd) dd.style.display = 'none';
+  var btn = document.getElementById('proj-combobox-btn');
+  if (dd) dd.classList.remove('show');
+  if (btn) btn.classList.remove('open');
   filterByProject(projectId);
 }
 
