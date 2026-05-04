@@ -5834,27 +5834,34 @@ function renderSettingsView() {
 
 var _settingsProjectSearch = '';
 
+var SETTINGS_PROJ_LIMIT = 5;
+
 function renderSettingsProjectsList(searchOverride) {
   var container = document.getElementById('projects-list');
   if (!container) return;
   if (searchOverride !== undefined) _settingsProjectSearch = searchOverride;
-  var q = (_settingsProjectSearch || '').toLowerCase();
-  var filtered = q ? projects.filter(function(p) { return (p.Name || '').toLowerCase().indexOf(q) !== -1; }) : projects;
+  var q = (_settingsProjectSearch || '').trim().toLowerCase();
+  var filtered = q
+    ? projects.filter(function(p) { return (p.Name || '').toLowerCase().indexOf(q) !== -1; })
+    : projects;
+  var displayed = q ? filtered : filtered.slice(0, SETTINGS_PROJ_LIMIT);
+  var extraCount = q ? 0 : Math.max(0, filtered.length - SETTINGS_PROJ_LIMIT);
 
   var html = '<div style="margin-bottom:8px;">';
-  html += '<input type="text" class="form-input" placeholder="' + (currentLang === 'fr' ? '🔍 Rechercher un projet...' : '🔍 Search projects...') + '"';
+  html += '<input type="text" class="form-input" id="settings-proj-search"';
+  html += ' placeholder="' + (currentLang === 'fr' ? '🔍 Rechercher un projet...' : '🔍 Search projects...') + '"';
   html += ' value="' + sanitize(_settingsProjectSearch) + '" oninput="renderSettingsProjectsList(this.value)"';
-  html += ' style="width:100%;box-sizing:border-box;">';
+  html += ' style="width:100%;box-sizing:border-box;" autocomplete="off">';
   html += '</div>';
 
-  if (filtered.length === 0) {
+  if (displayed.length === 0) {
     html += '<div style="text-align:center;color:#94a3b8;padding:20px;">' + t('noProject') + '</div>';
   } else {
     html += '<div class="settings-items">';
     var allTasks = tasks;
-    filtered.forEach(function(proj) {
-      var taskCount = allTasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
-      html += '<div class="settings-item" style="border-left: 4px solid ' + (proj.Color || '#6366f1') + ';">';
+    displayed.forEach(function(proj) {
+      var taskCount = allTasks.filter(function(tk) { return tk.Project_Id === proj.id; }).length;
+      html += '<div class="settings-item" style="border-left:4px solid ' + (proj.Color || '#6366f1') + ';">';
       html += '<div class="settings-item-info">';
       html += '<strong>' + sanitize(proj.Name) + '</strong>';
       html += '<span class="settings-item-meta">' + taskCount + ' ' + (currentLang === 'fr' ? 'tâches' : 'tasks') + '</span>';
@@ -5866,8 +5873,16 @@ function renderSettingsProjectsList(searchOverride) {
       html += '</div>';
     });
     html += '</div>';
+    if (extraCount > 0) {
+      html += '<div style="padding:8px 12px;font-size:11px;color:#94a3b8;text-align:center;">';
+      html += '+ ' + extraCount + ' ' + (currentLang === 'fr' ? 'autres — tapez pour chercher' : 'more — type to search');
+      html += '</div>';
+    }
   }
   container.innerHTML = html;
+  // Restore cursor position in search input
+  var inp = document.getElementById('settings-proj-search');
+  if (inp && searchOverride !== undefined) { var l = inp.value.length; inp.setSelectionRange(l, l); inp.focus(); }
 }
 
 function openProjectModalForEdit(projectId) {
