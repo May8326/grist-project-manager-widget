@@ -438,6 +438,29 @@
       text-align: center;
       border-top: 1px solid #f1f5f9;
     }
+    .settings-search-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 7px 12px 7px 32px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
+      color: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .settings-search-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+    }
+    body.dark-mode .settings-search-input {
+      background-color: #0f172a;
+      border-color: #334155;
+      color: #f1f5f9;
+    }
+    body.dark-mode .settings-search-input:focus { border-color: #6366f1; }
     .settings-chips {
       display: flex;
       flex-wrap: wrap;
@@ -3730,7 +3753,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=35"></script>
+  <script src="widget.js?v=36"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>

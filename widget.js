@@ -5847,11 +5847,11 @@ function renderSettingsProjectsList(searchOverride) {
   var displayed = q ? filtered : filtered.slice(0, SETTINGS_PROJ_LIMIT);
   var extraCount = q ? 0 : Math.max(0, filtered.length - SETTINGS_PROJ_LIMIT);
 
-  var html = '<div style="margin-bottom:8px;">';
-  html += '<input type="text" class="form-input" id="settings-proj-search"';
-  html += ' placeholder="' + (currentLang === 'fr' ? '🔍 Rechercher un projet...' : '🔍 Search projects...') + '"';
+  var html = '<div style="margin-bottom:10px;">';
+  html += '<input type="text" id="settings-proj-search" class="settings-search-input"';
+  html += ' placeholder="' + (currentLang === 'fr' ? 'Rechercher un projet...' : 'Search a project...') + '"';
   html += ' value="' + sanitize(_settingsProjectSearch) + '" oninput="renderSettingsProjectsList(this.value)"';
-  html += ' style="width:100%;box-sizing:border-box;" autocomplete="off">';
+  html += ' autocomplete="off">';
   html += '</div>';
 
   if (displayed.length === 0) {
