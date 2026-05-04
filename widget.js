@@ -778,11 +778,27 @@ function getColumnName(entity, field) {
   return columnMapping[entity][field] || field;
 }
 
-// ChoiceList-safe role helpers (Role column may be Text or ChoiceList/array)
+// ChoiceList-safe role helpers
+// Grist ChoiceList is serialized as:
+//   - array: ["L", "role1", "role2"]  (first element is always "L" marker)
+//   - string: "L,role1,role2"          (same but joined)
+//   - plain string: "role1"            (Choice column, single value)
 function getUserRoles(u) {
   if (!u || !u.Role) return [];
-  if (Array.isArray(u.Role)) return u.Role;
-  return [String(u.Role)];
+  var raw = u.Role;
+  if (Array.isArray(raw)) {
+    // Drop the Grist "L" marker if present
+    var arr = (raw.length > 0 && raw[0] === 'L') ? raw.slice(1) : raw;
+    return arr.filter(function(r) { return r && r !== 'L'; });
+  }
+  var s = String(raw).trim();
+  if (!s) return [];
+  // String serialized ChoiceList: starts with "L,"
+  if (s.length > 1 && s[0] === 'L' && s[1] === ',') {
+    return s.slice(2).split(',').map(function(r) { return r.trim(); }).filter(Boolean);
+  }
+  // Single choice value
+  return [s];
 }
 function userMatchesRole(u, role) {
   return getUserRoles(u).indexOf(role) !== -1;
