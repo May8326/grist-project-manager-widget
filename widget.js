@@ -5861,7 +5861,9 @@ function renderSettingsProjectsList(searchOverride) {
     var allTasks = tasks;
     displayed.forEach(function(proj) {
       var taskCount = allTasks.filter(function(tk) { return tk.Project_Id === proj.id; }).length;
-      html += '<div class="settings-item" style="border-left:4px solid ' + (proj.Color || '#6366f1') + ';">';
+      var dotColor = proj.Color || '#6366f1';
+      html += '<div class="settings-item">';
+      html += '<span class="settings-item-dot" style="background:' + dotColor + ';"></span>';
       html += '<div class="settings-item-info">';
       html += '<strong>' + sanitize(proj.Name) + '</strong>';
       html += '<span class="settings-item-meta">' + taskCount + ' ' + (currentLang === 'fr' ? 'tâches' : 'tasks') + '</span>';
@@ -5872,12 +5874,10 @@ function renderSettingsProjectsList(searchOverride) {
       html += '</div>';
       html += '</div>';
     });
-    html += '</div>';
     if (extraCount > 0) {
-      html += '<div style="padding:8px 12px;font-size:11px;color:#94a3b8;text-align:center;">';
-      html += '+ ' + extraCount + ' ' + (currentLang === 'fr' ? 'autres — tapez pour chercher' : 'more — type to search');
-      html += '</div>';
+      html += '<div class="settings-more-hint">+ ' + extraCount + ' ' + (currentLang === 'fr' ? 'autres — tapez pour chercher' : 'more — type to search') + '</div>';
     }
+    html += '</div>';
   }
   container.innerHTML = html;
   // Restore cursor position in search input
