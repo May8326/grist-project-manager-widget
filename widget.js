@@ -621,6 +621,15 @@ var TAGS_TABLE = 'PM_Tags';
 var PROJECTS_TABLE = 'PM_Projects';
 var CONFIG_TABLE = 'PM_Config';
 
+// Default table names — used to detect remapping: if a table var differs from
+// its default it means the user mapped it to an existing table, so we must NOT
+// auto-create the default PM_* table.
+var DEFAULT_TASKS_TABLE    = 'PM_Tasks';
+var DEFAULT_USERS_TABLE    = 'PM_Users';
+var DEFAULT_PROJECTS_TABLE = 'PM_Projects';
+var DEFAULT_CATEGORIES_TABLE = 'PM_Categories';
+var DEFAULT_TAGS_TABLE     = 'PM_Tags';
+
 // Configuration mapping object
 var columnMapping = {
   tasks: {
@@ -767,6 +776,20 @@ function setField(record, entity, field, value) {
 function getColumnName(entity, field) {
   if (!columnMapping[entity]) return field;
   return columnMapping[entity][field] || field;
+}
+
+// ChoiceList-safe role helpers (Role column may be Text or ChoiceList/array)
+function getUserRoles(u) {
+  if (!u || !u.Role) return [];
+  if (Array.isArray(u.Role)) return u.Role;
+  return [String(u.Role)];
+}
+function userMatchesRole(u, role) {
+  return getUserRoles(u).indexOf(role) !== -1;
+}
+function userRoleDisplay(u) {
+  var roles = getUserRoles(u);
+  return roles.length ? roles.join(', ') : '';
 }
 
 function formatDate(d) {
@@ -1002,7 +1025,16 @@ async function ensureTables() {
   try {
     var existingTables = await grist.docApi.listTables();
 
-    if (existingTables.indexOf(TASKS_TABLE) === -1) {
+    // If PM_Config already exists load the mapping NOW so table vars reflect any
+    // remapping the user has configured.  This prevents re-creating PM_Users etc.
+    // when they have been remapped to existing user-owned tables.
+    if (existingTables.indexOf(CONFIG_TABLE) !== -1) {
+      await loadColumnMapping();
+    }
+
+    // Only auto-create a table when it (a) still has its default PM_* name
+    // (meaning it has not been remapped) AND (b) does not yet exist.
+    if (TASKS_TABLE === DEFAULT_TASKS_TABLE && existingTables.indexOf(TASKS_TABLE) === -1) {
       await grist.docApi.applyUserActions([
         ['AddTable', TASKS_TABLE, [
           { id: 'Title', type: 'Text' },
@@ -1022,7 +1054,7 @@ async function ensureTables() {
       ]);
     }
 
-    if (existingTables.indexOf(USERS_TABLE) === -1) {
+    if (USERS_TABLE === DEFAULT_USERS_TABLE && existingTables.indexOf(USERS_TABLE) === -1) {
       await grist.docApi.applyUserActions([
         ['AddTable', USERS_TABLE, [
           { id: 'Name', type: 'Text' },
@@ -1061,6 +1093,12 @@ async function ensureTables() {
         ['AddTable', SUBTASKS_TABLE, [
           { id: 'Parent_Task_Id', type: 'Int' },
           { id: 'Title', type: 'Text' },
+          { id: 'Description', type: 'Text' },
+          { id: 'Status', type: 'Choice', widgetOptions: JSON.stringify({ choices: ['todo', 'progress', 'done'] }) },
+          { id: 'Priority', type: 'Choice', widgetOptions: JSON.stringify({ choices: ['high', 'medium', 'low'] }) },
+          { id: 'Assignee', type: 'Text' },
+          { id: 'Due_Date', type: 'Date' },
+          { id: 'Estimated_Hours', type: 'Numeric' },
           { id: 'Completed', type: 'Bool' },
           { id: 'Order', type: 'Int' },
           { id: 'Created_At', type: 'Date' }
@@ -1124,7 +1162,7 @@ async function ensureTables() {
       ]);
     }
 
-    if (existingTables.indexOf(CATEGORIES_TABLE) === -1) {
+    if (CATEGORIES_TABLE === DEFAULT_CATEGORIES_TABLE && existingTables.indexOf(CATEGORIES_TABLE) === -1) {
       await grist.docApi.applyUserActions([
         ['AddTable', CATEGORIES_TABLE, [
           { id: 'Name', type: 'Text' },
@@ -1134,7 +1172,7 @@ async function ensureTables() {
       ]);
     }
 
-    if (existingTables.indexOf(TAGS_TABLE) === -1) {
+    if (TAGS_TABLE === DEFAULT_TAGS_TABLE && existingTables.indexOf(TAGS_TABLE) === -1) {
       await grist.docApi.applyUserActions([
         ['AddTable', TAGS_TABLE, [
           { id: 'Name', type: 'Text' },
@@ -1143,7 +1181,7 @@ async function ensureTables() {
       ]);
     }
 
-    if (existingTables.indexOf(PROJECTS_TABLE) === -1) {
+    if (PROJECTS_TABLE === DEFAULT_PROJECTS_TABLE && existingTables.indexOf(PROJECTS_TABLE) === -1) {
       await grist.docApi.applyUserActions([
         ['AddTable', PROJECTS_TABLE, [
           { id: 'Name', type: 'Text' },
@@ -1266,7 +1304,19 @@ async function ensureTables() {
           stActions.push(['AddColumn', SUBTASKS_TABLE, 'Assignee', { type: 'Text' }]);
         }
         if (stCols.indexOf('Due_Date') === -1) {
-          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Due_Date', { type: 'Int' }]);
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Due_Date', { type: 'Date' }]);
+        }
+        if (stCols.indexOf('Description') === -1) {
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Description', { type: 'Text' }]);
+        }
+        if (stCols.indexOf('Status') === -1) {
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Status', { type: 'Choice', widgetOptions: JSON.stringify({ choices: ['todo', 'progress', 'done'] }) }]);
+        }
+        if (stCols.indexOf('Priority') === -1) {
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Priority', { type: 'Choice', widgetOptions: JSON.stringify({ choices: ['high', 'medium', 'low'] }) }]);
+        }
+        if (stCols.indexOf('Estimated_Hours') === -1) {
+          stActions.push(['AddColumn', SUBTASKS_TABLE, 'Estimated_Hours', { type: 'Numeric' }]);
         }
         if (stActions.length > 0) {
           await grist.docApi.applyUserActions(stActions);
@@ -1405,11 +1455,15 @@ async function loadAllData() {
           id: subtaskData.id[i],
           Parent_Task_Id: subtaskData.Parent_Task_Id ? subtaskData.Parent_Task_Id[i] : null,
           Title: subtaskData.Title ? subtaskData.Title[i] : '',
+          Description: subtaskData.Description ? subtaskData.Description[i] : '',
+          Status: subtaskData.Status ? subtaskData.Status[i] : 'todo',
+          Priority: subtaskData.Priority ? subtaskData.Priority[i] : 'medium',
           Completed: subtaskData.Completed ? subtaskData.Completed[i] : false,
           Order: subtaskData.Order ? subtaskData.Order[i] : 0,
           Blocked_By_Subtask_Id: subtaskData.Blocked_By_Subtask_Id ? subtaskData.Blocked_By_Subtask_Id[i] : null,
           Assignee: subtaskData.Assignee ? subtaskData.Assignee[i] : '',
           Due_Date: subtaskData.Due_Date ? subtaskData.Due_Date[i] : null,
+          Estimated_Hours: subtaskData.Estimated_Hours ? subtaskData.Estimated_Hours[i] : null,
           Created_At: subtaskData.Created_At ? subtaskData.Created_At[i] : null
         });
       }
@@ -1591,14 +1645,14 @@ function renderProjectSelector() {
   var container = document.getElementById('project-selector');
   if (!container) return;
 
-  // Rôles disponibles (distincts, triés)
+  // Rôles disponibles (distincts, triés) — supports ChoiceList arrays
   var roleSet = {};
-  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
+  users.forEach(function(u) { getUserRoles(u).forEach(function(r) { if (r) roleSet[r] = true; }); });
   var roles = Object.keys(roleSet).sort();
 
   // Personnes visibles selon le rôle sélectionné
   var visibleUsers = currentFilterRole
-    ? users.filter(function(u) { return u.Role === currentFilterRole; })
+    ? users.filter(function(u) { return userMatchesRole(u, currentFilterRole); })
     : users;
 
   // Projets visibles : si un assigné est choisi, uniquement ceux où il a des tâches
@@ -1636,14 +1690,23 @@ function renderProjectSelector() {
   });
   html += '</select>';
 
-  // Filtre Projet
-  html += '<select id="project-filter" onchange="filterByProject(this.value)" class="' + (currentProjectId ? 'project-filter-active' : '') + '">';
-  html += '<option value="">' + t('allProjects') + '</option>';
+  // Filtre Projet avec recherche en temps réel
+  var currentProjName = '';
+  if (currentProjectId) {
+    var cp = projects.find(function(p) { return p.id === currentProjectId; });
+    currentProjName = cp ? (cp.Name || '') : '';
+  }
+  html += '<div style="position:relative;display:inline-block;">';
+  html += '<input type="text" id="project-search-input" class="cascade-select' + (currentProjectId ? ' cascade-active' : '') + '"';
+  html += ' placeholder="' + (currentLang === 'fr' ? '🔍 Projet...' : '🔍 Project...') + '"';
+  html += ' value="' + sanitize(currentProjName) + '"';
+  html += ' oninput="filterProjectDropdown(this.value)" onfocus="showProjectDropdown()" autocomplete="off" style="min-width:140px;">';
+  html += '<div id="project-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-secondary,#1e293b);border:1px solid var(--border,#334155);border-radius:6px;max-height:220px;overflow-y:auto;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.3);">';
+  html += '<div class="proj-option" data-id="" onclick="selectProjectOption(\'\',\'\')" style="padding:6px 10px;cursor:pointer;font-size:12px;color:#94a3b8;">' + t('allProjects') + '</div>';
   visibleProjects.forEach(function(proj) {
-    var selected = currentProjectId === proj.id ? ' selected' : '';
-    html += '<option value="' + proj.id + '"' + selected + '>' + sanitize(proj.Name) + '</option>';
+    html += '<div class="proj-option" data-id="' + proj.id + '" data-name="' + sanitize(proj.Name) + '" onclick="selectProjectOption(' + proj.id + ',\'' + sanitize((proj.Name || '').replace(/'/g, '\\\'')) + '\')" style="padding:6px 10px;cursor:pointer;font-size:12px;">' + sanitize(proj.Name) + '</div>';
   });
-  html += '</select>';
+  html += '</div></div>';
 
   if (currentProjectId) {
     var proj = projects.find(function(p) { return p.id === currentProjectId; });
@@ -1684,6 +1747,41 @@ function renderProjectSelector() {
   }
 }
 
+function showProjectDropdown() {
+  var dd = document.getElementById('project-dropdown');
+  if (dd) { dd.style.display = 'block'; filterProjectDropdown(''); }
+  setTimeout(function() {
+    document.addEventListener('mousedown', function hideDD(e) {
+      var dd2 = document.getElementById('project-dropdown');
+      var inp = document.getElementById('project-search-input');
+      if (dd2 && !dd2.contains(e.target) && e.target !== inp) {
+        dd2.style.display = 'none';
+        document.removeEventListener('mousedown', hideDD);
+      }
+    });
+  }, 0);
+}
+
+function filterProjectDropdown(query) {
+  var dd = document.getElementById('project-dropdown');
+  if (!dd) return;
+  dd.style.display = 'block';
+  var q = (query || '').toLowerCase();
+  var opts = dd.querySelectorAll('.proj-option');
+  opts.forEach(function(opt) {
+    var name = (opt.dataset.name || '').toLowerCase();
+    opt.style.display = (!q || name.indexOf(q) !== -1) ? 'block' : 'none';
+  });
+}
+
+function selectProjectOption(projectId, projectName) {
+  var inp = document.getElementById('project-search-input');
+  if (inp) inp.value = projectName;
+  var dd = document.getElementById('project-dropdown');
+  if (dd) dd.style.display = 'none';
+  filterByProject(projectId);
+}
+
 function filterByProject(projectId) {
   currentProjectId = projectId ? parseInt(projectId) : null;
   localStorage.setItem('pm-current-project', currentProjectId || '');
@@ -1697,7 +1795,7 @@ function filterByRole(role) {
   if (currentFilterRole && currentFilterAssignee) {
     var stillValid = users.some(function(u) {
       var val = u.Email || u.Name;
-      return val === currentFilterAssignee && u.Role === currentFilterRole;
+      return val === currentFilterAssignee && userMatchesRole(u, currentFilterRole);
     });
     if (!stillValid) {
       currentFilterAssignee = null;
@@ -1737,7 +1835,7 @@ function getFilteredTasks() {
   if (currentFilterRole) {
     // Identifiants attendus dans task.Assignee : Email en priorité, sinon Name
     var roleIds = users
-      .filter(function(u) { return u.Role === currentFilterRole; })
+      .filter(function(u) { return userMatchesRole(u, currentFilterRole); })
       .map(function(u) { return u.Email || u.Name; });
     result = result.filter(function(t) {
       var list = (t.Assignee || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
@@ -3116,7 +3214,12 @@ function renderUsersList() {
   var container = document.getElementById('users-list');
   if (!container) return;
 
-  if (users.length === 0) {
+  // Apply role filter so the Équipe tab respects the active role selection
+  var displayedUsers = currentFilterRole
+    ? users.filter(function(u) { return userMatchesRole(u, currentFilterRole); })
+    : users;
+
+  if (displayedUsers.length === 0) {
     container.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;">' + t('noUsers') + '</div>';
     return;
   }
@@ -3129,10 +3232,11 @@ function renderUsersList() {
   html += '<th>' + t('colActions') + '</th>';
   html += '</tr></thead><tbody>';
 
-  for (var i = 0; i < users.length; i++) {
-    var u = users[i];
-    var roleText = roleLabel(u.Role);
-    var roleBg = u.Role === 'admin' ? '#fef2f2;color:#dc2626' : (u.Role === 'viewer' ? '#f1f5f9;color:#64748b' : '#eff6ff;color:#1e40af');
+  for (var i = 0; i < displayedUsers.length; i++) {
+    var u = displayedUsers[i];
+    var roleText = userRoleDisplay(u) ? userRoleDisplay(u).split(',').map(function(r) { return roleLabel(r.trim()); }).join(', ') : '';
+    var firstRole = getUserRoles(u)[0] || 'member';
+    var roleBg = firstRole === 'admin' ? '#fef2f2;color:#dc2626' : (firstRole === 'viewer' ? '#f1f5f9;color:#64748b' : '#eff6ff;color:#1e40af');
 
     html += '<tr>';
     html += '<td style="font-weight:700;">👤 ' + sanitize(u.Name) + '</td>';
@@ -3292,7 +3396,7 @@ async function getRoleChoicesFromGrist() {
   // Default roles + roles already used
   var roleSet = {};
   ['admin', 'member', 'viewer'].forEach(function(r) { roleSet[r] = true; });
-  users.forEach(function(u) { if (u.Role) roleSet[u.Role] = true; });
+  users.forEach(function(u) { getUserRoles(u).forEach(function(r) { if (r) roleSet[r] = true; }); });
 
   // Try to get choices defined in Grist column metadata
   try {
@@ -3346,9 +3450,9 @@ async function openManageRolesModal() {
 
 function renderManageRolesModal() {
   var choices = _manageRolesState.choices;
-  // Build usage map: role -> count of users
+  // Build usage map: role -> count of users (ChoiceList-safe)
   var usage = {};
-  users.forEach(function(u) { if (u.Role) usage[u.Role] = (usage[u.Role] || 0) + 1; });
+  users.forEach(function(u) { getUserRoles(u).forEach(function(r) { if (r) usage[r] = (usage[r] || 0) + 1; }); });
 
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
@@ -3407,7 +3511,7 @@ function addRoleChoice() {
 function removeRoleChoice(index) {
   var role = _manageRolesState.choices[index];
   // Check if used
-  var inUse = users.some(function(u) { return u.Role === role; });
+  var inUse = users.some(function(u) { return userMatchesRole(u, role); });
   if (inUse) {
     if (!confirm(t('cannotDeleteUsedRole') + '. ' + (currentLang === 'fr' ? 'Continuer ?' : 'Continue?'))) {
       return;
@@ -4007,10 +4111,19 @@ function openEditTaskModal(taskId, preserveAssignees) {
       if (stBlocked && stBlocker) {
         html += '<span class="subtask-blocked-badge" title="' + t('blockedBy') + ' ' + sanitize(stBlocker.Title) + '">🔒</span>';
       }
-      // Meta : assignee + due date
+      // Meta : status + priority + assignee + due date
       html += '<span class="subtask-meta">';
+      if (st.Status && st.Status !== 'todo') {
+        var stStatusColor = st.Status === 'done' ? '#22c55e' : '#f59e0b';
+        html += '<span class="subtask-assignee-badge" style="background:' + stStatusColor + '20;color:' + stStatusColor + ';">' + (st.Status === 'done' ? '✅' : '🔄') + '</span>';
+      }
+      if (st.Priority && st.Priority !== 'medium') {
+        var stPrioColor = st.Priority === 'high' ? '#ef4444' : '#94a3b8';
+        html += '<span class="subtask-assignee-badge" style="background:' + stPrioColor + '20;color:' + stPrioColor + ';">' + (st.Priority === 'high' ? '🔴' : '⬇️') + '</span>';
+      }
       if (st.Assignee) html += '<span class="subtask-assignee-badge">👤 ' + sanitize(st.Assignee) + '</span>';
       if (stDueDateStr) html += '<span class="subtask-due-badge' + stDueClass + '">📅 ' + stDueDateStr + '</span>';
+      if (st.Estimated_Hours) html += '<span class="subtask-assignee-badge">⏱ ' + st.Estimated_Hours + 'h</span>';
       html += '</span>';
       html += '<button class="subtask-edit-btn" onclick="startEditSubtask(' + st.id + ', ' + task.id + ')" title="' + t('editSubtask') + '">✏️</button>';
       html += '<button class="subtask-dep-btn" onclick="openSubtaskDepModal(' + st.id + ', ' + task.id + ')" title="' + t('dependencies') + '">🔗</button>';
@@ -4023,12 +4136,28 @@ function openEditTaskModal(taskId, preserveAssignees) {
         userOptions += '<option value="' + sanitize(users[ui].Name) + '"' + uSel + '>' + sanitize(users[ui].Name) + '</option>';
       }
       var stDueDateInput = st.Due_Date ? new Date(st.Due_Date * 1000).toISOString().split('T')[0] : '';
-      html += '<div class="subtask-edit-form" id="st-edit-' + st.id + '" style="display:none;">';
-      html += '<input type="text" class="subtask-edit-title" id="st-title-' + st.id + '" value="' + sanitize(st.Title) + '" />';
+      html += '<div class="subtask-edit-form" id="st-edit-' + st.id + '" style="display:none;flex-direction:column;gap:6px;padding:8px;background:var(--bg-hover,#1e293b);border-radius:6px;margin-top:4px;">';
+      html += '<input type="text" class="subtask-edit-title" id="st-title-' + st.id + '" value="' + sanitize(st.Title) + '" placeholder="' + t('fieldTitle') + '" />';
+      html += '<textarea class="subtask-edit-title" id="st-desc-' + st.id + '" rows="2" placeholder="' + t('fieldDesc') + '" style="resize:vertical;">' + sanitize(st.Description || '') + '</textarea>';
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+      html += '<select class="subtask-edit-select" id="st-status-' + st.id + '">';
+      html += '<option value="todo"' + (st.Status === 'todo' || !st.Status ? ' selected' : '') + '>' + t('statusTodo') + '</option>';
+      html += '<option value="progress"' + (st.Status === 'progress' ? ' selected' : '') + '>' + t('statusInProgress') + '</option>';
+      html += '<option value="done"' + (st.Status === 'done' ? ' selected' : '') + '>' + t('statusDone') + '</option>';
+      html += '</select>';
+      html += '<select class="subtask-edit-select" id="st-priority-' + st.id + '">';
+      html += '<option value="high"' + (st.Priority === 'high' ? ' selected' : '') + '>' + t('priorityHigh') + '</option>';
+      html += '<option value="medium"' + (st.Priority === 'medium' || !st.Priority ? ' selected' : '') + '>' + t('priorityMedium') + '</option>';
+      html += '<option value="low"' + (st.Priority === 'low' ? ' selected' : '') + '>' + t('priorityLow') + '</option>';
+      html += '</select>';
       html += '<select class="subtask-edit-select" id="st-assignee-' + st.id + '">' + userOptions + '</select>';
       html += '<input type="date" class="subtask-edit-date" id="st-due-' + st.id + '" value="' + stDueDateInput + '" />';
-      html += '<button class="subtask-save-btn" onclick="saveEditSubtask(' + st.id + ', ' + task.id + ')">✓</button>';
+      html += '<input type="number" class="subtask-edit-select" id="st-hours-' + st.id + '" value="' + (st.Estimated_Hours || '') + '" placeholder="h" style="width:60px;" min="0" step="0.5" />';
+      html += '</div>';
+      html += '<div style="display:flex;gap:6px;justify-content:flex-end;">';
+      html += '<button class="subtask-save-btn" onclick="saveEditSubtask(' + st.id + ', ' + task.id + ')">✓ ' + (currentLang === 'fr' ? 'Enregistrer' : 'Save') + '</button>';
       html += '<button class="subtask-cancel-btn" onclick="cancelEditSubtask(' + st.id + ')">✕</button>';
+      html += '</div>';
       html += '</div>';
       html += '</div>';
     }
@@ -4477,15 +4606,26 @@ function cancelEditSubtask(subtaskId) {
 }
 
 async function saveEditSubtask(subtaskId, parentTaskId) {
-  var titleInput = document.getElementById('st-title-' + subtaskId);
-  var assigneeSelect = document.getElementById('st-assignee-' + subtaskId);
-  var dueDateInput = document.getElementById('st-due-' + subtaskId);
+  var titleInput    = document.getElementById('st-title-'    + subtaskId);
+  var descInput     = document.getElementById('st-desc-'     + subtaskId);
+  var statusSel     = document.getElementById('st-status-'   + subtaskId);
+  var prioritySel   = document.getElementById('st-priority-' + subtaskId);
+  var assigneeSelect= document.getElementById('st-assignee-' + subtaskId);
+  var dueDateInput  = document.getElementById('st-due-'      + subtaskId);
+  var hoursInput    = document.getElementById('st-hours-'    + subtaskId);
   if (!titleInput) return;
   var newTitle = titleInput.value.trim();
   if (!newTitle) return;
   var newAssignee = assigneeSelect ? assigneeSelect.value : '';
   var newDueDate = dueDateInput && dueDateInput.value ? Math.floor(new Date(dueDateInput.value).getTime() / 1000) : null;
-  var fields = { Title: newTitle, Assignee: newAssignee };
+  var fields = {
+    Title: newTitle,
+    Description: descInput ? descInput.value : '',
+    Status: statusSel ? statusSel.value : 'todo',
+    Priority: prioritySel ? prioritySel.value : 'medium',
+    Assignee: newAssignee,
+    Estimated_Hours: hoursInput && hoursInput.value ? parseFloat(hoursInput.value) : null
+  };
   if (newDueDate) fields.Due_Date = newDueDate;
   var savedAssignees = editAssignees.slice();
   try {
@@ -5639,18 +5779,28 @@ function renderSettingsView() {
   renderSettingsTagsList();
 }
 
-function renderSettingsProjectsList() {
+var _settingsProjectSearch = '';
+
+function renderSettingsProjectsList(searchOverride) {
   var container = document.getElementById('projects-list');
   if (!container) return;
-  
-  var html = '';
-  if (projects.length === 0) {
-    html = '<div style="text-align:center;color:#94a3b8;padding:20px;">' + t('noProject') + '</div>';
+  if (searchOverride !== undefined) _settingsProjectSearch = searchOverride;
+  var q = (_settingsProjectSearch || '').toLowerCase();
+  var filtered = q ? projects.filter(function(p) { return (p.Name || '').toLowerCase().indexOf(q) !== -1; }) : projects;
+
+  var html = '<div style="margin-bottom:8px;">';
+  html += '<input type="text" class="form-input" placeholder="' + (currentLang === 'fr' ? '🔍 Rechercher un projet...' : '🔍 Search projects...') + '"';
+  html += ' value="' + sanitize(_settingsProjectSearch) + '" oninput="renderSettingsProjectsList(this.value)"';
+  html += ' style="width:100%;box-sizing:border-box;">';
+  html += '</div>';
+
+  if (filtered.length === 0) {
+    html += '<div style="text-align:center;color:#94a3b8;padding:20px;">' + t('noProject') + '</div>';
   } else {
-    html = '<div class="settings-items">';
-    var filteredTasks = getFilteredTasks();
-    projects.forEach(function(proj) {
-      var taskCount = filteredTasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
+    html += '<div class="settings-items">';
+    var allTasks = tasks;
+    filtered.forEach(function(proj) {
+      var taskCount = allTasks.filter(function(t) { return t.Project_Id === proj.id; }).length;
       html += '<div class="settings-item" style="border-left: 4px solid ' + (proj.Color || '#6366f1') + ';">';
       html += '<div class="settings-item-info">';
       html += '<strong>' + sanitize(proj.Name) + '</strong>';
@@ -5668,8 +5818,58 @@ function renderSettingsProjectsList() {
 }
 
 function openProjectModalForEdit(projectId) {
-  openProjectModal();
-  editProject(projectId);
+  var proj = projects.find(function(p) { return p.id === projectId; });
+  if (!proj) return;
+
+  var statusOptions = ['active', 'archived', 'completed'];
+  var statusLabels = { active: currentLang === 'fr' ? 'Actif' : 'Active', archived: currentLang === 'fr' ? 'Archivé' : 'Archived', completed: currentLang === 'fr' ? 'Terminé' : 'Completed' };
+
+  var html = '<div class="modal-overlay" onclick="closeModal(event)">';
+  html += '<div class="modal" style="max-width:420px;" onclick="event.stopPropagation()">';
+  html += '<div class="modal-header"><h3>✏️ ' + (currentLang === 'fr' ? 'Modifier le projet' : 'Edit project') + '</h3>';
+  html += '<button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-body">';
+  html += '<div class="form-group"><label>' + (currentLang === 'fr' ? 'Nom' : 'Name') + '</label>';
+  html += '<input type="text" id="inline-proj-name" class="form-input" value="' + sanitize(proj.Name || '') + '"></div>';
+  html += '<div class="form-group"><label>' + (currentLang === 'fr' ? 'Description' : 'Description') + '</label>';
+  html += '<textarea id="inline-proj-desc" class="form-input" rows="2">' + sanitize(proj.Description || '') + '</textarea></div>';
+  html += '<div style="display:flex;gap:12px;">';
+  html += '<div class="form-group" style="flex:1"><label>' + (currentLang === 'fr' ? 'Couleur' : 'Color') + '</label>';
+  html += '<input type="color" id="inline-proj-color" value="' + (proj.Color || '#6366f1') + '" style="width:48px;height:36px;border:none;cursor:pointer;"></div>';
+  html += '<div class="form-group" style="flex:2"><label>' + (currentLang === 'fr' ? 'Statut' : 'Status') + '</label>';
+  html += '<select id="inline-proj-status" class="form-input">';
+  statusOptions.forEach(function(s) {
+    html += '<option value="' + s + '"' + (proj.Status === s ? ' selected' : '') + '>' + (statusLabels[s] || s) + '</option>';
+  });
+  html += '</select></div></div>';
+  html += '</div>';
+  html += '<div class="modal-footer">';
+  html += '<button class="btn btn-secondary" onclick="closeModalForce()">' + (currentLang === 'fr' ? 'Annuler' : 'Cancel') + '</button>';
+  html += '<button class="btn btn-primary" onclick="saveInlineProjectEdit(' + projectId + ')">' + (currentLang === 'fr' ? '💾 Enregistrer' : '💾 Save') + '</button>';
+  html += '</div></div></div>';
+  document.getElementById('modal-container').innerHTML = html;
+  document.getElementById('inline-proj-name').focus();
+}
+
+async function saveInlineProjectEdit(projectId) {
+  var name = (document.getElementById('inline-proj-name').value || '').trim();
+  if (!name) { showToast(currentLang === 'fr' ? 'Le nom est requis' : 'Name is required', 'error'); return; }
+  var record = {};
+  setField(record, 'projects', 'name', name);
+  setField(record, 'projects', 'description', document.getElementById('inline-proj-desc').value || '');
+  setField(record, 'projects', 'color', document.getElementById('inline-proj-color').value || '#6366f1');
+  setField(record, 'projects', 'status', document.getElementById('inline-proj-status').value || 'active');
+  try {
+    await grist.docApi.applyUserActions([['UpdateRecord', PROJECTS_TABLE, projectId, record]]);
+    showToast((currentLang === 'fr' ? 'Projet modifié' : 'Project updated') + ' ✓', 'success');
+    closeModalForce();
+    await loadAllData();
+    renderSettingsProjectsList();
+    renderProjectSelector();
+    refreshAllViews();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 function renderSettingsCategoriesList() {
