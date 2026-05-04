@@ -1950,47 +1950,136 @@
     }
     .subtask-item:hover .subtask-edit-btn { opacity: 0.6; }
     .subtask-edit-btn:hover { opacity: 1 !important; background: #eff6ff; }
+    /* Subtask edit form — modern card */
     .subtask-edit-form {
       display: none;
-      align-items: center;
-      gap: 6px;
-      flex: 1;
-      flex-wrap: wrap;
-      padding: 4px 0;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      margin: 6px 0 2px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      animation: dropdownIn .12s ease;
     }
     .subtask-edit-title {
-      flex: 1;
-      min-width: 120px;
-      padding: 5px 8px;
-      border: 1px solid #3b82f6;
-      border-radius: 6px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
       font-size: 13px;
       font-family: inherit;
+      background: #fff;
+      color: inherit;
+      outline: none;
+      transition: border-color .15s;
     }
-    .subtask-edit-select, .subtask-edit-date {
-      padding: 5px 8px;
+    .subtask-edit-title:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.12); }
+    /* Pill selector group */
+    .st-pill-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .st-pill-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 4px;
+    }
+    .st-pill {
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1.5px solid #e2e8f0;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      color: #64748b;
+      transition: all .12s;
+    }
+    .st-pill:hover { border-color: #94a3b8; color: #334155; }
+    .st-pill.active-todo   { background: #f1f5f9; border-color: #94a3b8; color: #475569; }
+    .st-pill.active-progress { background: #fff7ed; border-color: #f97316; color: #c2410c; }
+    .st-pill.active-done   { background: #f0fdf4; border-color: #22c55e; color: #15803d; }
+    .st-pill.active-high   { background: #fef2f2; border-color: #ef4444; color: #b91c1c; }
+    .st-pill.active-medium { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+    .st-pill.active-low    { background: #f0f9ff; border-color: #38bdf8; color: #0369a1; }
+    /* Meta row (assignee + date + hours) */
+    .st-meta-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .st-meta-row select,
+    .subtask-edit-select,
+    .subtask-edit-date {
+      padding: 5px 10px;
       border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      border-radius: 7px;
       font-size: 12px;
       font-family: inherit;
-      background: white;
+      background: #fff;
+      color: inherit;
+      outline: none;
+      transition: border-color .15s;
     }
-    .subtask-save-btn, .subtask-cancel-btn {
-      width: 26px;
-      height: 26px;
+    .st-meta-row select:focus,
+    .subtask-edit-date:focus { border-color: #6366f1; }
+    .st-hours-input {
+      width: 72px;
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      font-size: 12px;
+      font-family: inherit;
+      background: #fff;
+      color: inherit;
+      outline: none;
+    }
+    .st-hours-input:focus { border-color: #6366f1; }
+    /* Save/Cancel buttons */
+    .st-form-actions { display: flex; gap: 6px; justify-content: flex-end; }
+    .subtask-save-btn {
+      padding: 6px 14px;
+      background: #6366f1;
+      color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      transition: background .12s;
     }
-    .subtask-save-btn { background: #22c55e; color: white; }
-    .subtask-save-btn:hover { background: #16a34a; }
-    .subtask-cancel-btn { background: #e2e8f0; color: #64748b; }
-    .subtask-cancel-btn:hover { background: #fee2e2; color: #ef4444; }
+    .subtask-save-btn:hover { background: #4f46e5; }
+    .subtask-cancel-btn {
+      padding: 6px 12px;
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .subtask-cancel-btn:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
+    /* dark mode */
+    body.dark-mode .subtask-edit-form { background: #1e293b; border-color: #334155; }
+    body.dark-mode .subtask-edit-title,
+    body.dark-mode .st-meta-row select,
+    body.dark-mode .subtask-edit-select,
+    body.dark-mode .subtask-edit-date,
+    body.dark-mode .st-hours-input { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+    body.dark-mode .st-pill { border-color: #334155; color: #94a3b8; }
+    body.dark-mode .st-pill:hover { border-color: #475569; color: #e2e8f0; }
+    body.dark-mode .subtask-cancel-btn { border-color: #334155; color: #64748b; }
 
     /* Subtasks in Table View */
     .toggle-btn {
@@ -3753,7 +3842,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=37"></script>
+  <script src="widget.js?v=38"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>

@@ -4205,27 +4205,45 @@ function openEditTaskModal(taskId, preserveAssignees) {
         userOptions += '<option value="' + sanitize(users[ui].Name) + '"' + uSel + '>' + sanitize(users[ui].Name) + '</option>';
       }
       var stDueDateInput = st.Due_Date ? new Date(st.Due_Date * 1000).toISOString().split('T')[0] : '';
-      html += '<div class="subtask-edit-form" id="st-edit-' + st.id + '" style="display:none;flex-direction:column;gap:6px;padding:8px;background:var(--bg-hover,#1e293b);border-radius:6px;margin-top:4px;">';
-      html += '<input type="text" class="subtask-edit-title" id="st-title-' + st.id + '" value="' + sanitize(st.Title) + '" placeholder="' + t('fieldTitle') + '" />';
-      html += '<textarea class="subtask-edit-title" id="st-desc-' + st.id + '" rows="2" placeholder="' + t('fieldDesc') + '" style="resize:vertical;">' + sanitize(st.Description || '') + '</textarea>';
-      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
-      html += '<select class="subtask-edit-select" id="st-status-' + st.id + '">';
-      html += '<option value="todo"' + (st.Status === 'todo' || !st.Status ? ' selected' : '') + '>' + t('statusTodo') + '</option>';
-      html += '<option value="progress"' + (st.Status === 'progress' ? ' selected' : '') + '>' + t('statusInProgress') + '</option>';
-      html += '<option value="done"' + (st.Status === 'done' ? ' selected' : '') + '>' + t('statusDone') + '</option>';
-      html += '</select>';
-      html += '<select class="subtask-edit-select" id="st-priority-' + st.id + '">';
-      html += '<option value="high"' + (st.Priority === 'high' ? ' selected' : '') + '>' + t('priorityHigh') + '</option>';
-      html += '<option value="medium"' + (st.Priority === 'medium' || !st.Priority ? ' selected' : '') + '>' + t('priorityMedium') + '</option>';
-      html += '<option value="low"' + (st.Priority === 'low' ? ' selected' : '') + '>' + t('priorityLow') + '</option>';
-      html += '</select>';
-      html += '<select class="subtask-edit-select" id="st-assignee-' + st.id + '">' + userOptions + '</select>';
-      html += '<input type="date" class="subtask-edit-date" id="st-due-' + st.id + '" value="' + stDueDateInput + '" />';
-      html += '<input type="number" class="subtask-edit-select" id="st-hours-' + st.id + '" value="' + (st.Estimated_Hours || '') + '" placeholder="h" style="width:60px;" min="0" step="0.5" />';
+      var stStatus = st.Status || 'todo';
+      var stPriority = st.Priority || 'medium';
+      var stLbl = { todo: t('statusTodo'), progress: t('statusInProgress'), done: t('statusDone') };
+      var prLbl = { high: t('priorityHigh'), medium: t('priorityMedium'), low: t('priorityLow') };
+      html += '<div class="subtask-edit-form" id="st-edit-' + st.id + '">';
+      // Title
+      html += '<input type="text" class="subtask-edit-title" id="st-title-' + st.id + '" value="' + sanitize(st.Title) + '" placeholder="' + (currentLang === 'fr' ? 'Titre de la sous-tâche...' : 'Subtask title...') + '">';
+      // Description
+      html += '<textarea class="subtask-edit-title" id="st-desc-' + st.id + '" rows="2" placeholder="' + (currentLang === 'fr' ? 'Description (optionnel)...' : 'Description (optional)...') + '" style="resize:vertical;">' + sanitize(st.Description || '') + '</textarea>';
+      // Status pills
+      html += '<div>';
+      html += '<div class="st-pill-label">' + (currentLang === 'fr' ? 'Statut' : 'Status') + '</div>';
+      html += '<div class="st-pill-group" id="st-status-group-' + st.id + '">';
+      ['todo','progress','done'].forEach(function(s) {
+        html += '<button type="button" class="st-pill' + (stStatus === s ? ' active-' + s : '') + '" onclick="setStPill(\'status\',' + st.id + ',\'' + s + '\',this)">' + stLbl[s] + '</button>';
+      });
       html += '</div>';
-      html += '<div style="display:flex;gap:6px;justify-content:flex-end;">';
-      html += '<button class="subtask-save-btn" onclick="saveEditSubtask(' + st.id + ', ' + task.id + ')">✓ ' + (currentLang === 'fr' ? 'Enregistrer' : 'Save') + '</button>';
-      html += '<button class="subtask-cancel-btn" onclick="cancelEditSubtask(' + st.id + ')">✕</button>';
+      html += '<input type="hidden" id="st-status-' + st.id + '" value="' + stStatus + '">';
+      html += '</div>';
+      // Priority pills
+      html += '<div>';
+      html += '<div class="st-pill-label">' + (currentLang === 'fr' ? 'Priorité' : 'Priority') + '</div>';
+      html += '<div class="st-pill-group" id="st-priority-group-' + st.id + '">';
+      ['high','medium','low'].forEach(function(p) {
+        html += '<button type="button" class="st-pill' + (stPriority === p ? ' active-' + p : '') + '" onclick="setStPill(\'priority\',' + st.id + ',\'' + p + '\',this)">' + prLbl[p] + '</button>';
+      });
+      html += '</div>';
+      html += '<input type="hidden" id="st-priority-' + st.id + '" value="' + stPriority + '">';
+      html += '</div>';
+      // Assignee + date + hours row
+      html += '<div class="st-meta-row">';
+      html += '<select id="st-assignee-' + st.id + '" style="flex:1;min-width:100px;">' + userOptions + '</select>';
+      html += '<input type="date" class="subtask-edit-date" id="st-due-' + st.id + '" value="' + stDueDateInput + '">';
+      html += '<input type="number" class="st-hours-input" id="st-hours-' + st.id + '" value="' + (st.Estimated_Hours || '') + '" placeholder="' + (currentLang === 'fr' ? 'Heures' : 'Hours') + '" min="0" step="0.5">';
+      html += '</div>';
+      // Actions
+      html += '<div class="st-form-actions">';
+      html += '<button type="button" class="subtask-cancel-btn" onclick="cancelEditSubtask(' + st.id + ')">' + (currentLang === 'fr' ? 'Annuler' : 'Cancel') + '</button>';
+      html += '<button type="button" class="subtask-save-btn" onclick="saveEditSubtask(' + st.id + ', ' + task.id + ')">✓ ' + (currentLang === 'fr' ? 'Enregistrer' : 'Save') + '</button>';
       html += '</div>';
       html += '</div>';
       html += '</div>';
@@ -4659,12 +4677,25 @@ async function deleteSubtask(subtaskId, parentTaskId) {
   }
 }
 
+// Toggle pill selection for status/priority
+function setStPill(field, subtaskId, value, btn) {
+  var group = document.getElementById('st-' + field + '-group-' + subtaskId);
+  var hidden = document.getElementById('st-' + field + '-' + subtaskId);
+  if (!group || !hidden) return;
+  hidden.value = value;
+  var pills = group.querySelectorAll('.st-pill');
+  pills.forEach(function(p) {
+    p.className = 'st-pill'; // reset
+  });
+  btn.className = 'st-pill active-' + value;
+}
+
 // Édition inline d'une sous-tâche
 function startEditSubtask(subtaskId) {
   var viewEl = document.getElementById('st-view-' + subtaskId);
   var editEl = document.getElementById('st-edit-' + subtaskId);
   if (viewEl) viewEl.style.display = 'none';
-  if (editEl) { editEl.style.display = 'flex'; document.getElementById('st-title-' + subtaskId).focus(); }
+  if (editEl) { editEl.style.display = 'flex'; var t = document.getElementById('st-title-' + subtaskId); if (t) t.focus(); }
 }
 
 function cancelEditSubtask(subtaskId) {
