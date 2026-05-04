@@ -269,7 +269,10 @@ var i18n = {
     mappingGuide: 'Consulter le guide complet du système de mapping',
     projectActive: 'Actif',
     projectCompleted: 'Terminé',
-    projectArchived: 'Archivé'
+    projectArchived: 'Archivé',
+    editTemplate: 'Modifier le modèle',
+    modalEditTemplate: 'Modifier le modèle de tâche',
+    templateUpdated: 'Modèle mis à jour !'
   },
   en: {
     appTitle: 'Project Management',
@@ -535,7 +538,10 @@ var i18n = {
     mappingGuide: 'Read the complete mapping guide',
     projectActive: 'Active',
     projectCompleted: 'Completed',
-    projectArchived: 'Archived'
+    projectArchived: 'Archived',
+    editTemplate: 'Edit template',
+    modalEditTemplate: 'Edit task template',
+    templateUpdated: 'Template updated!'
   }
 };
 
@@ -3083,6 +3089,7 @@ function renderTemplatesView() {
     html += '</div></div>';
     html += '<div style="display:flex;gap:4px;">';
     html += '<button class="btn btn-primary btn-sm" onclick="useTemplate(' + tpl.id + ')">' + t('useTemplate') + '</button>';
+    if (isOwner) html += '<button class="btn-icon" onclick="openNewTemplateModal(' + tpl.id + ')" title="' + t('editTemplate') + '">✏️</button>';
     if (isOwner) html += '<button class="btn-icon" onclick="deleteTemplate(' + tpl.id + ')">🗑️</button>';
     html += '</div>';
     html += '</div>';
@@ -4909,30 +4916,45 @@ async function createNextOccurrence(task) {
   }
 }
 
-function openNewTemplateModal() {
+function openNewTemplateModal(tplId) {
+  var editing = tplId != null;
+  var tpl = editing ? templates.find(function(x) { return x.id === tplId; }) : null;
+  if (editing && !tpl) return;
+
+  var title = editing ? sanitize(tpl.Title || '') : '';
+  var desc = editing ? sanitize(tpl.Description || '') : '';
+  var priority = editing ? (tpl.Priority || 'medium') : 'medium';
+  var category = editing ? (tpl.Category || '') : '';
+  var hours = editing ? (tpl.Estimated_Hours || '') : '';
+
   var html = '<div class="modal-overlay" onclick="closeModal(event)">';
   html += '<div class="modal" onclick="event.stopPropagation()">';
-  html += '<div class="modal-header"><h3>' + t('modalNewTemplate') + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
+  html += '<div class="modal-header"><h3>' + t(editing ? 'modalEditTemplate' : 'modalNewTemplate') + '</h3><button class="modal-close" onclick="closeModalForce()">✕</button></div>';
   html += '<div class="modal-body">';
-  html += '<div class="form-group"><label>' + t('fieldTitle') + '</label><input type="text" id="tpl-title" /></div>';
-  html += '<div class="form-group"><label>' + t('fieldDescription') + '</label><textarea id="tpl-desc"></textarea></div>';
+  html += '<div class="form-group"><label>' + t('fieldTitle') + '</label><input type="text" id="tpl-title" value="' + title + '" /></div>';
+  html += '<div class="form-group"><label>' + t('fieldDescription') + '</label><textarea id="tpl-desc">' + desc + '</textarea></div>';
   html += '<div class="form-row">';
   html += '<div class="form-group"><label>' + t('fieldPriority') + '</label><select id="tpl-priority">';
-  html += '<option value="medium">' + t('priorityMedium') + '</option>';
-  html += '<option value="high">' + t('priorityHigh') + '</option>';
-  html += '<option value="low">' + t('priorityLow') + '</option>';
+  html += '<option value="medium"' + (priority === 'medium' ? ' selected' : '') + '>' + t('priorityMedium') + '</option>';
+  html += '<option value="high"' + (priority === 'high' ? ' selected' : '') + '>' + t('priorityHigh') + '</option>';
+  html += '<option value="low"' + (priority === 'low' ? ' selected' : '') + '>' + t('priorityLow') + '</option>';
   html += '</select></div>';
-  var tplCatOptions = '<option value="">--</option>';
+  var tplCatOptions = '<option value=""' + (!category ? ' selected' : '') + '>--</option>';
   for (var tci = 0; tci < categories.length; tci++) {
-    tplCatOptions += '<option value="' + sanitize(categories[tci].Name) + '">' + sanitize(categories[tci].Name) + '</option>';
+    var catName = categories[tci].Name;
+    tplCatOptions += '<option value="' + sanitize(catName) + '"' + (catName === category ? ' selected' : '') + '>' + sanitize(catName) + '</option>';
   }
   html += '<div class="form-group"><label>' + t('fieldCategory') + '</label><select id="tpl-category">' + tplCatOptions + '</select></div>';
   html += '</div>';
-  html += '<div class="form-group"><label>' + t('fieldEstimatedTime') + '</label><input type="number" id="tpl-hours" step="0.5" min="0" /></div>';
+  html += '<div class="form-group"><label>' + t('fieldEstimatedTime') + '</label><input type="number" id="tpl-hours" step="0.5" min="0" value="' + hours + '" /></div>';
   html += '</div>';
   html += '<div class="modal-footer">';
   html += '<button class="btn btn-secondary" onclick="closeModalForce()">' + t('cancel') + '</button>';
-  html += '<button class="btn btn-primary" onclick="createTemplate()">' + t('save') + '</button>';
+  if (editing) {
+    html += '<button class="btn btn-primary" onclick="updateTemplate(' + tplId + ')">' + t('save') + '</button>';
+  } else {
+    html += '<button class="btn btn-primary" onclick="createTemplate()">' + t('save') + '</button>';
+  }
   html += '</div></div></div>';
 
   document.getElementById('modal-container').innerHTML = html;
@@ -5081,6 +5103,32 @@ async function createTemplate() {
     await loadAllData();
   } catch (e) {
     console.error('Error creating template:', e);
+  }
+}
+
+async function updateTemplate(tplId) {
+  var title = document.getElementById('tpl-title').value.trim();
+  if (!title) return;
+
+  var record = {
+    Title: title,
+    Description: document.getElementById('tpl-desc').value.trim(),
+    Priority: document.getElementById('tpl-priority').value,
+    Category: document.getElementById('tpl-category').value.trim(),
+    Estimated_Hours: parseFloat(document.getElementById('tpl-hours').value) || 0,
+    Updated_At: Math.floor(Date.now() / 1000)
+  };
+
+  try {
+    await grist.docApi.applyUserActions([
+      ['UpdateRecord', TEMPLATES_TABLE, tplId, record]
+    ]);
+    showToast(t('templateUpdated'), 'success');
+    closeModalForce();
+    await loadAllData();
+  } catch (e) {
+    console.error('Error updating template:', e);
+    showToast('Error: ' + e.message, 'error');
   }
 }
 
