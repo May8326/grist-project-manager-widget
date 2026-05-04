@@ -1703,25 +1703,37 @@ function renderProjectSelector() {
   html += '</button>';
   html += '<div class="proj-dropdown" id="project-dropdown">';
   html += '<div class="proj-dropdown-search"><input type="text" id="proj-search-input" placeholder="' + (currentLang === 'fr' ? 'Rechercher...' : 'Search...') + '" oninput="filterProjectDropdown(this.value)" autocomplete="off"></div>';
+  var PROJ_INITIAL_LIMIT = 5;
   html += '<div class="proj-dropdown-list" id="proj-dropdown-list">';
-  // "All projects" option
-  html += '<div class="proj-option' + (!currentProjectId ? ' selected' : '') + '" data-id="" data-name="" onclick="selectProjectOption(\'\',\'\')">';
+  // "All projects" option (always shown)
+  html += '<div class="proj-option' + (!currentProjectId ? ' selected' : '') + '" data-id="" data-name="" data-always="1" onclick="selectProjectOption(\'\',\'\')">';
   html += '<span class="proj-dot" style="background:#94a3b8;opacity:.4;"></span>';
   html += '<span>' + (currentLang === 'fr' ? 'Tous les projets' : 'All projects') + '</span>';
   html += '</div>';
-  // Project options with task counts
+  // Project options — first 5 visible, rest hidden until search
   var allTasksForCount = tasks;
-  visibleProjects.forEach(function(proj) {
+  var extraCount = Math.max(0, visibleProjects.length - PROJ_INITIAL_LIMIT);
+  visibleProjects.forEach(function(proj, idx) {
     var taskCount = allTasksForCount.filter(function(tt) { return tt.Project_Id === proj.id; }).length;
     var isSelected = currentProjectId === proj.id;
     var safeName = sanitize(proj.Name || '');
     var safeNameJs = (proj.Name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    html += '<div class="proj-option' + (isSelected ? ' selected' : '') + '" data-id="' + proj.id + '" data-name="' + safeName + '" onclick="selectProjectOption(' + proj.id + ',\'' + safeNameJs + '\')">';
+    var isExtra = idx >= PROJ_INITIAL_LIMIT && !isSelected;
+    html += '<div class="proj-option' + (isSelected ? ' selected' : '') + '"';
+    html += ' data-id="' + proj.id + '" data-name="' + safeName + '"';
+    if (isExtra) html += ' data-extra="1" style="display:none;"';
+    html += ' onclick="selectProjectOption(' + proj.id + ',\'' + safeNameJs + '\')">';
     html += '<span class="proj-dot" style="background:' + (proj.Color || '#6366f1') + ';"></span>';
     html += '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;">' + safeName + '</span>';
     if (taskCount > 0) html += '<span class="proj-count">' + taskCount + '</span>';
     html += '</div>';
   });
+  // "More" hint shown when no search active
+  if (extraCount > 0) {
+    html += '<div id="proj-more-hint" style="padding:6px 12px;font-size:11px;color:#94a3b8;text-align:center;border-top:1px solid #f1f5f9;">';
+    html += '+ ' + extraCount + ' ' + (currentLang === 'fr' ? 'autres — tapez pour chercher' : 'more — type to search');
+    html += '</div>';
+  }
   html += '</div></div></div>';
 
   if (currentFilterRole || currentFilterAssignee || currentProjectId) {
@@ -1791,12 +1803,28 @@ function showProjectDropdown() { toggleProjectDropdown(); }
 function filterProjectDropdown(query) {
   var list = document.getElementById('proj-dropdown-list');
   if (!list) return;
-  var q = (query || '').toLowerCase();
+  var q = (query || '').trim().toLowerCase();
+  var hint = document.getElementById('proj-more-hint');
   var opts = list.querySelectorAll('.proj-option');
-  opts.forEach(function(opt) {
-    var name = (opt.dataset.name || '').toLowerCase();
-    opt.style.display = (!q || name.indexOf(q) !== -1 || opt.dataset.id === '') ? '' : 'none';
-  });
+
+  if (!q) {
+    // No query: show first 5 only (restore data-extra hidden state)
+    opts.forEach(function(opt) {
+      if (opt.dataset.always === '1' || !opt.dataset.extra) {
+        opt.style.display = '';
+      } else {
+        opt.style.display = 'none';
+      }
+    });
+    if (hint) hint.style.display = '';
+  } else {
+    // Query: show all matching, hide non-matching
+    opts.forEach(function(opt) {
+      var name = (opt.dataset.name || '').toLowerCase();
+      opt.style.display = (opt.dataset.always === '1' || name.indexOf(q) !== -1) ? '' : 'none';
+    });
+    if (hint) hint.style.display = 'none';
+  }
 }
 
 function selectProjectOption(projectId, projectName) {
