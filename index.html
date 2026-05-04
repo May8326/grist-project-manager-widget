@@ -285,17 +285,48 @@
       color: #c7d2fe !important;
     }
     .cascade-select {
-      border-color: #cbd5e1 !important;
+      padding: 7px 28px 7px 12px !important;
+      border: 2px solid #cbd5e1 !important;
+      border-radius: 8px !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      background-color: #fff !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 10px center !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      color: #64748b !important;
+      cursor: pointer !important;
       min-width: 130px !important;
+      transition: border-color .15s, box-shadow .15s !important;
+      font-family: inherit !important;
+    }
+    .cascade-select:hover {
+      border-color: #94a3b8 !important;
+    }
+    .cascade-select:focus {
+      outline: none !important;
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 3px rgba(99,102,241,.15) !important;
     }
     .cascade-select.cascade-active {
       border-color: #f59e0b !important;
-      background: linear-gradient(135deg, #fffbeb, #fef3c7) !important;
+      background-color: #fffbeb !important;
+      color: #92400e !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23f59e0b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
     }
-    body.dark-mode .cascade-select { border-color: #475569 !important; }
+    body.dark-mode .cascade-select {
+      background-color: #1e293b !important;
+      border-color: #475569 !important;
+      color: #94a3b8 !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+    }
+    body.dark-mode .cascade-select:hover { border-color: #64748b !important; }
     body.dark-mode .cascade-select.cascade-active {
       border-color: #f59e0b !important;
-      background: linear-gradient(135deg, #1e1b0e, #292012) !important;
+      background-color: #1e1b0e !important;
+      color: #fbbf24 !important;
     }
     .project-items {
       display: flex;
@@ -3637,7 +3668,7 @@
     </div>
   </div>
 
-  <script src="widget.js?v=31"></script>
+  <script src="widget.js?v=32"></script>
   <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 12px; font-size: 0.7em; color: #94a3b8; display: flex; justify-content: space-between; z-index: 1000;">
     <span>© 2026 Said Hamadou (isaytoo)</span>
     <a href="https://gristup.fr" target="_blank" style="color: #3b82f6; text-decoration: none;">gristup.fr</a>
