@@ -4207,7 +4207,7 @@ function openEditTaskModal(taskId, preserveAssignees) {
       var stDueDateInput = st.Due_Date ? new Date(st.Due_Date * 1000).toISOString().split('T')[0] : '';
       var stStatus = st.Status || 'todo';
       var stPriority = st.Priority || 'medium';
-      var stLbl = { todo: t('statusTodo'), progress: t('statusInProgress'), done: t('statusDone') };
+      var stLbl = { todo: t('statusTodo'), progress: t('statusProgress'), done: t('statusDone') };
       var prLbl = { high: t('priorityHigh'), medium: t('priorityMedium'), low: t('priorityLow') };
       html += '<div class="subtask-edit-form" id="st-edit-' + st.id + '">';
       // Title
